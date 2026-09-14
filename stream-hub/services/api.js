@@ -37,4 +37,3 @@ export const fetchMediaDetails = async (id, type = 'movie') => {
                                       };
 
                                   
-}
