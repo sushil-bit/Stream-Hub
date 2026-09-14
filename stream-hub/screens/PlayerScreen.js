@@ -254,3 +254,36 @@ const styles = StyleSheet.create({
   epText: { color: '#bbb', fontWeight: '600', fontSize: 13 },
   epTextActive: { color: '#fff' },
 });
+// Inside PlayerScreen.js
+import React, { useEffect, useState } from 'react';
+import { saveWatchProgress } from '../services/storage';
+
+export default function PlayerScreen({ route, navigation }) {
+  const { media } = route.params; 
+    // media expected shape: { id, type, title, posterPath, season, episode }
+
+      const [currentSeason, setCurrentSeason] = useState(media.season || 1);
+        const [currentEpisode, setCurrentEpisode] = useState(media.episode || 1);
+
+          // Sync state to AsyncStorage on mount or whenever episode/season changes
+            useEffect(() => {
+                saveWatchProgress({
+                      id: media.id,
+                            type: media.type, // 'movie', 'tv', or 'anime'
+                                  title: media.title,
+                                        posterPath: media.posterPath,
+                                              season: currentSeason,
+                                                    episode: currentEpisode,
+                                                        });
+                                                          }, [media.id, media.type, currentSeason, currentEpisode]);
+
+                                                            // Existing orientation, WebView, and server cycling logic follows...
+                                                              // When user picks a new episode from the drawer:
+                                                                const handleEpisodeChange = (newEp, newSeason = currentSeason) => {
+                                                                    setCurrentSeason(newSeason);
+                                                                        setCurrentEpisode(newEp);
+                                                                          };
+
+                                                                            // ... rest of PlayerScreen
+                                                                            }
+                                                                            
