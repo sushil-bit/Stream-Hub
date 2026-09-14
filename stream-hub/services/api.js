@@ -23,3 +23,18 @@ export const fetchTrendingMovies = async () => {
                                                             return [];
                                                               }
                                                               };
+export const fetchMediaDetails = async (id, type = 'movie') => {
+    try {
+        const res = await fetch(
+              `https://api.themoviedb.org/3/${type}/${id}?api_key=e9e9d8da18ae29fc430845952232787c&append_to_response=videos,credits`
+                  );
+                      const data = await res.json();
+                          return data;
+                            } catch (err) {
+                                console.error('Error fetching details:', err);
+                                    return null;
+                                      }
+                                      };
+
+                                  
+}
