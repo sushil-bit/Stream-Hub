@@ -23,4 +23,3 @@ export const fetchTrendingMovies = async () => {
                                                             return [];
                                                               }
                                                               };
-                                                              it
