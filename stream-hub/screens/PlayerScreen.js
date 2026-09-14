@@ -25,38 +25,38 @@ export default function PlayerScreen({ route, navigation }) {
   const [serverIndex, setServerIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Generate episode numbers 1-24 for quick switching
-  const episodeList = Array.from({ length: 24 }, (_, i) => i + 1);
+  const episodeList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24];
 
-  // Server endpoints supporting movies & episodic TV content
   const servers = [
     {
       name: 'VidLink Pro',
       getUrl: () =>
         isSeries
-          ? `https://vidlink.pro/tv/${item?.id || '1399'}/${season}/${episode}`
-          : `https://vidlink.pro/movie/${item?.id || '550'}`,
+          ? 'https://vidlink.pro/tv/' + (item?.id || '1399') + '/' + season + '/' + episode
+          : 'https://vidlink.pro/movie/' + (item?.id || '550'),
     },
     {
       name: 'AutoEmbed',
       getUrl: () =>
         isSeries
-          ? `https://player.autoembed.cc/embed/tv/${item?.id || '1399'}/${season}/${episode}`
-          : `https://player.autoembed.cc/embed/movie/${item?.id || '550'}`,
+          ? 'https://player.autoembed.cc/embed/tv/' + (item?.id || '1399') + '/' + season + '/' + episode
+          : 'https://player.autoembed.cc/embed/movie/' + (item?.id || '550'),
     },
     {
       name: 'SuperEmbed',
       getUrl: () =>
         isSeries
-          ? `https://multiembed.mov/?video_id=${item?.id || '1399'}&tmdb=1&s=${season}&e=${episode}`
-          : `https://multiembed.mov/?video_id=${item?.id || '550'}&tmdb=1`,
+          ? 'https://multiembed.mov/?video_id=' + (item?.id || '1399') + '&tmdb=1&s=' + season + '&e=' + episode
+          : 'https://multiembed.mov/?video_id=' + (item?.id || '550') + '&tmdb=1',
     },
     {
       name: 'YouTube Search',
       getUrl: () =>
-        `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(
-          (item?.title || item?.name || 'media') + (isSeries ? ` S${season}E${episode}` : ' trailer')
-        )}&autoplay=1`,
+        'https://www.youtube-nocookie.com/embed?listType=search&list=' +
+        encodeURIComponent(
+          (item?.title || item?.name || 'media') + (isSeries ? ' S' + season + 'E' + episode : ' trailer')
+        ) +
+        '&autoplay=1',
     },
   ];
 
@@ -115,38 +115,35 @@ export default function PlayerScreen({ route, navigation }) {
           <ActivityIndicator size="large" color="#E50914" />
           <Text style={styles.loadingText}>
             {isSeries
-              ? `Loading S${season}:E${episode} on ${servers[serverIndex].name}...`
-              : `Connecting to ${servers[serverIndex].name}...`}
+              ? 'Loading S' + season + ':E' + episode + ' on ' + servers[serverIndex].name + '...'
+              : 'Connecting to ' + servers[serverIndex].name + '...'}
           </Text>
         </View>
       )}
 
-      {/* Top Left: Exit */}
       <TouchableOpacity style={styles.closeBtn} onPress={() => navigation.goBack()}>
         <Text style={styles.btnText}>✕</Text>
       </TouchableOpacity>
 
-      {/* Top Right Controls */}
       <View style={styles.topRightBar}>
         {isSeries && (
           <TouchableOpacity
             style={styles.controlPill}
             onPress={() => setShowPicker(!showPicker)}
           >
-            <Text style={styles.pillText}>S{season}:E{episode} ▾</Text>
+            <Text style={styles.pillText}>{'S' + season + ':E' + episode + ' ▾'}</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity style={styles.controlPill} onPress={switchServer}>
-          <Text style={styles.pillText}>{servers[serverIndex].name} ▾</Text>
+          <Text style={styles.pillText}>{servers[serverIndex].name + ' ▾'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Episode Selection Overlay Drawer */}
       {showPicker && (
         <View style={styles.episodeDrawer}>
           <View style={styles.drawerHeader}>
-            <Text style={styles.drawerTitle}>Select Episode (Season {season})</Text>
+            <Text style={styles.drawerTitle}>{'Select Episode (Season ' + season + ')'}</Text>
             <TouchableOpacity onPress={() => setShowPicker(false)}>
               <Text style={styles.drawerClose}>✕</Text>
             </TouchableOpacity>
@@ -170,7 +167,7 @@ export default function PlayerScreen({ route, navigation }) {
                     ep === episode && styles.epTextActive,
                   ]}
                 >
-                  EP {ep}
+                  {'EP ' + ep}
                 </Text>
               </TouchableOpacity>
             )}
@@ -210,7 +207,6 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 99,
     flexDirection: 'row',
-    gap: 8,
   },
   controlPill: {
     backgroundColor: 'rgba(0,0,0,0.75)',
@@ -219,6 +215,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#444',
+    marginLeft: 8,
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   pillText: { color: '#fff', fontSize: 12, fontWeight: '600' },
