@@ -1,3 +1,38 @@
+export default function PlayerScreen({ route, navigation }) {
+      const { item } = route.params || {};
+
+        // Build stream URL using TMDb ID or Jikan title
+          const streamUrl = item?.isAnime
+              ? `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(item.title + ' full episode')}`
+                  : `https://vidsrc.to/embed/movie/${item.id}`;
+
+                    useEffect(() => {
+                        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+                            return () => {
+                                  ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+                                      };
+                                        }, []);
+
+                                          return (
+                                              <View style={styles.container}>
+                                                    <StatusBar hidden />
+                                                          <WebView
+                                                                  source={{ uri: streamUrl }}
+                                                                          style={styles.player}
+                                                                                  allowsFullscreenVideo
+                                                                                          javaScriptEnabled
+                                                                                                  domStorageEnabled
+                                                                                                          allowsInlineMediaPlayback
+                                                                                                                />
+                                                                                                                      <TouchableOpacity style={styles.btn} onPress={() => navigation.goBack()}>
+                                                                                                                              <Text style={styles.btnText}>✕</Text>
+                                                                                                                                    </TouchableOpacity>
+                                                                                                                                        </View>
+                                                                                                                                          );
+                                                                                                                                          }
+
+
+
 import React, { useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, StatusBar } from 'react-native';
 import { WebView } from 'react-native-webview';
