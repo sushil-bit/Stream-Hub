@@ -63,24 +63,26 @@ import {
                                                                                                                                                                                                                           if (updated) setContinueWatching(updated);
                                                                                                                                                                                                                             };
 
-                                                                                                                                                                                                                              const renderCard = ({ item }) => {
-                                                                                                                                                                                                                                  const imgUri = item.isAnime
-                                                                                                                                                                                                                                        ? item.poster_path
-                                                                                                                                                                                                                                              : `https://image.tmdb.org/t/p/w500${item.poster_path}`;
+    const renderCard = ({ item }) => {
+    const rawPath = item.poster_path || item.posterPath;
+    const imgUri = rawPath?.startsWith('http')
+      ? rawPath
+      : `https://image.tmdb.org/t/p/w500${rawPath}`;
 
-                                                                                                                                                                                                                                                  return (
-                                                                                                                                                                                                                                                        <TouchableOpacity
-                                                                                                                                                                                                                                                                style={styles.card}
-                                                                                                                                                                                                                                                                        activeOpacity={0.8}
-                                                                                                                                                                                                                                                                                onPress={() => navigation.navigate("Details", { item })}
-                                                                                                                                                                                                                                                                                      >
-                                                                                                                                                                                                                                                                                              <Image source={{ uri: imgUri }} style={styles.poster} />
-                                                                                                                                                                                                                                                                                                      <Text style={styles.cardTitle} numberOfLines={1}>
-                                                                                                                                                                                                                                                                                                                {item.title || item.name}
-                                                                                                                                                                                                                                                                                                                        </Text>
-                                                                                                                                                                                                                                                                                                                              </TouchableOpacity>
-                                                                                                                                                                                                                                                                                                                                  );
-                                                                                                                                                                                                                                                                                                                                    };
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate("Details", { item })}
+      >
+        <Image source={{ uri: imgUri }} style={styles.poster} />
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.title || item.name}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
 
                                                                                                                                                                                                                                                                                                                                       const renderContinueItem = ({ item }) => {
                                                                                                                                                                                                                                                                                                                                           const imgUri = item.posterPath?.startsWith("http")
