@@ -16,21 +16,28 @@ export const fetchTrendingMovies = async () => {
                                     };
 
                                     export const fetchTopAnime = async () => {
-                                      try {
-                                          const res = await fetch('https://api.jikan.moe/v4/top/anime');
-                                              const json = await res.json();
-                                                  if (!json.data) return [];
+  try {
+    const res = await fetch('https://api.jikan.moe/v4/top/anime?filter=airing&limit=15');
+    if (!res.ok) {
+      // Fallback endpoint if top/anime gets rate-limited
+      const fallbackRes = await fetch('https://api.jikan.moe/v4/seasons/now?limit=15');
+      const fallbackJson = await fallbackRes.json();
+      return formatAnime(fallbackJson.data || []);
+    }
+    const json = await res.json();
+    return formatAnime(json.data || []);
+  } catch (err) {
+    console.error('Jikan Fetch Error:', err);
+    return [];
+  }
+};
 
-                                                      return json.data.map((item) => ({
-                                                            id: item.mal_id,
-                                                                  title: item.title,
-                                                                        name: item.title,
-                                                                              poster_path: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url,
-                                                                                    isAnime: true,
-                                                                                          media_type: 'tv',
-                                                                                              }));
-                                                                                                } catch (err) {
-                                                                                                    console.error('Jikan Fetch Error:', err);
-                                                                                                        return [];
-                                                                                                          }
-                                                                                                          };
+const formatAnime = (list) =>
+  list.map((item) => ({
+    id: item.mal_id,
+    title: item.title,
+    name: item.title,
+    poster_path: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url,
+    isAnime: true,
+    media_type: 'tv',
+  }));
