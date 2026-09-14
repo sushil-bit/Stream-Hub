@@ -1,124 +1,70 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, StatusBar } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { WebView } from 'react-native-webview';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
 export default function PlayerScreen({ route, navigation }) {
-  const videoRef = useRef(null);
-    const { item } = route.params || {};
+  const { item } = route.params || {};
+    const videoUrl =
+        item?.videoUrl ||
+            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
-      // Direct video URL or fallback sample stream
-        const videoSource = item?.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-
-          useEffect(() => {
-              // Lock to landscape for cinematic viewing
+              useEffect(() => {
                   ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-
                       return () => {
-                            // Revert to portrait when exiting the player
-                                  ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-                                      };
-                                        }, []);
+                            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+                                };
+                                  }, []);
 
-                                          return (
-                                              <View style={styles.container}>
-                                                    <StatusBar hidden />
+                                    const html = `
+                                        <!DOCTYPE html>
+                                            <html>
+                                                  <head>
+                                                          <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+                                                                  <style>
+                                                                            * { margin:0; padding:0; background:#000; }
+                                                                                      body, html { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+                                                                                                video { width:100vw; height:100vh; object-fit:contain; }
+                                                                                                        </style>
+                                                                                                              </head>
+                                                                                                                    <body>
+                                                                                                                            <video controls autoplay playsinline src="${videoUrl}"></video>
+                                                                                                                                  </body>
+                                                                                                                                      </html>
+                                                                                                                                        `;
 
-                                                          <Video
-                                                                  ref={videoRef}
-                                                                          source={{ uri: videoSource }}
-                                                                                  style={styles.video}
-                                                                                          useNativeControls
-                                                                                                  resizeMode={ResizeMode.CONTAIN}
-                                                                                                          shouldPlay
-                                                                                                                />
+                                                                                                                                          return (
+                                                                                                                                              <View style={styles.container}>
+                                                                                                                                                    <StatusBar hidden />
+                                                                                                                                                          <WebView
+                                                                                                                                                                  originWhitelist={['*']}
+                                                                                                                                                                          source={{ html }}
+                                                                                                                                                                                  style={styles.player}
+                                                                                                                                                                                          allowsFullscreenVideo
+                                                                                                                                                                                                  allowsInlineMediaPlayback
+                                                                                                                                                                                                        />
+                                                                                                                                                                                                              <TouchableOpacity style={styles.btn} onPress={() => navigation.goBack()}>
+                                                                                                                                                                                                                      <Text style={styles.btnText}>✕</Text>
+                                                                                                                                                                                                                            </TouchableOpacity>
+                                                                                                                                                                                                                                </View>
+                                                                                                                                                                                                                                  );
+                                                                                                                                                                                                                                  }
 
-                                                                                                                      <TouchableOpacity 
-                                                                                                                              style={styles.closeButton} 
-                                                                                                                                      onPress={() => navigation.goBack()}
-                                                                                                                                            >
-                                                                                                                                                    <Text style={styles.closeText}>✕</Text>
-                                                                                                                                                          </TouchableOpacity>
-                                                                                                                                                              </View>
-                                                                                                                                                                );
-                                                                                                                                                                }
-
-                                                                                                                                                                const styles = StyleSheet.create({
-                                                                                                                                                                  container: { flex: 1, backgroundColor: '#000', justifyContent: 'center' },
-                                                                                                                                                                    video: { width: '100%', height: '100%' },
-                                                                                                                                                                      closeButton: {
-                                                                                                                                                                          position: 'absolute',
-                                                                                                                                                                              top: 20,
-                                                                                                                                                                                  left: 20,
-                                                                                                                                                                                      zIndex: 10,
-                                                                                                                                                                                          backgroundColor: 'rgba(0,0,0,0.6)',
-                                                                                                                                                                                              width: 36,
-                                                                                                                                                                                                  height: 36,
-                                                                                                                                                                                                      borderRadius: 18,
-                                                                                                                                                                                                          alignItems: 'center',
-                                                                                                                                                                                                              justifyContent: 'center',
-                                                                                                                                                                                                                },
-                                                                                                                                                                                                                  closeText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-                                                                                                                                                                                                                  });
-
-                                                                                                                                                                                                                  import React, { useRef, useEffect } from 'react';
-                                                                                                                                                                                                                  import { View, StyleSheet, TouchableOpacity, Text, StatusBar } from 'react-native';
-                                                                                                                                                                                                                  import { Video, ResizeMode } from 'expo-av';
-                                                                                                                                                                                                                  import * as ScreenOrientation from 'expo-screen-orientation';
-
-                                                                                                                                                                                                                  export default function PlayerScreen({ route, navigation }) {
-                                                                                                                                                                                                                    const videoRef = useRef(null);
-                                                                                                                                                                                                                      const { item } = route.params || {};
-
-                                                                                                                                                                                                                        // Direct video URL or fallback sample stream
-                                                                                                                                                                                                                          const videoSource = item?.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-
-                                                                                                                                                                                                                            useEffect(() => {
-                                                                                                                                                                                                                                ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-
-                                                                                                                                                                                                                                    return () => {
-                                                                                                                                                                                                                                          ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-                                                                                                                                                                                                                                              };
-                                                                                                                                                                                                                                                }, []);
-
-                                                                                                                                                                                                                                                  return (
-                                                                                                                                                                                                                                                      <View style={styles.container}>
-                                                                                                                                                                                                                                                            <StatusBar hidden />
-
-                                                                                                                                                                                                                                                                  <Video
-                                                                                                                                                                                                                                                                          ref={videoRef}
-                                                                                                                                                                                                                                                                                  source={{ uri: videoSource }}
-                                                                                                                                                                                                                                                                                          style={styles.video}
-                                                                                                                                                                                                                                                                                                  useNativeControls
-                                                                                                                                                                                                                                                                                                          resizeMode={ResizeMode.CONTAIN}
-                                                                                                                                                                                                                                                                                                                  shouldPlay
-                                                                                                                                                                                                                                                                                                                        />
-
-                                                                                                                                                                                                                                                                                                                              <TouchableOpacity 
-                                                                                                                                                                                                                                                                                                                                      style={styles.closeButton} 
-                                                                                                                                                                                                                                                                                                                                              onPress={() => navigation.goBack()}
-                                                                                                                                                                                                                                                                                                                                                    >
-                                                                                                                                                                                                                                                                                                                                                            <Text style={styles.closeText}>✕</Text>
-                                                                                                                                                                                                                                                                                                                                                                  </TouchableOpacity>
-                                                                                                                                                                                                                                                                                                                                                                      </View>
-                                                                                                                                                                                                                                                                                                                                                                        );
-                                                                                                                                                                                                                                                                                                                                                                        }
-
-                                                                                                                                                                                                                                                                                                                                                                        const styles = StyleSheet.create({
-                                                                                                                                                                                                                                                                                                                                                                          container: { flex: 1, backgroundColor: '#000', justifyContent: 'center' },
-                                                                                                                                                                                                                                                                                                                                                                            video: { width: '100%', height: '100%' },
-                                                                                                                                                                                                                                                                                                                                                                              closeButton: {
-                                                                                                                                                                                                                                                                                                                                                                                  position: 'absolute',
-                                                                                                                                                                                                                                                                                                                                                                                      top: 20,
-                                                                                                                                                                                                                                                                                                                                                                                          left: 20,
-                                                                                                                                                                                                                                                                                                                                                                                              zIndex: 10,
-                                                                                                                                                                                                                                                                                                                                                                                                  backgroundColor: 'rgba(0,0,0,0.6)',
-                                                                                                                                                                                                                                                                                                                                                                                                      width: 36,
-                                                                                                                                                                                                                                                                                                                                                                                                          height: 36,
-                                                                                                                                                                                                                                                                                                                                                                                                              borderRadius: 18,
-                                                                                                                                                                                                                                                                                                                                                                                                                  alignItems: 'center',
-                                                                                                                                                                                                                                                                                                                                                                                                                      justifyContent: 'center',
-                                                                                                                                                                                                                                                                                                                                                                                                                        },
-                                                                                                                                                                                                                                                                                                                                                                                                                          closeText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-                                                                                                                                                                                                                                                                                                                                                                                                                          });
-                                                                                                                                                                                                                                                                                                                                                                                                                          
+                                                                                                                                                                                                                                  const styles = StyleSheet.create({
+                                                                                                                                                                                                                                    container: { flex: 1, backgroundColor: '#000' },
+                                                                                                                                                                                                                                      player: { flex: 1, backgroundColor: '#000' },
+                                                                                                                                                                                                                                        btn: {
+                                                                                                                                                                                                                                            position: 'absolute',
+                                                                                                                                                                                                                                                top: 20,
+                                                                                                                                                                                                                                                    left: 20,
+                                                                                                                                                                                                                                                        zIndex: 99,
+                                                                                                                                                                                                                                                            backgroundColor: 'rgba(0,0,0,0.6)',
+                                                                                                                                                                                                                                                                width: 38,
+                                                                                                                                                                                                                                                                    height: 38,
+                                                                                                                                                                                                                                                                        borderRadius: 19,
+                                                                                                                                                                                                                                                                            alignItems: 'center',
+                                                                                                                                                                                                                                                                                justifyContent: 'center',
+                                                                                                                                                                                                                                                                                  },
+                                                                                                                                                                                                                                                                                    btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+                                                                                                                                                                                                                                                                                    });
+                                                                                                                                                                                                                                                                                    
