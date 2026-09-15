@@ -1,24 +1,31 @@
 {
   "expo": {
-    "name": "stream-hub",
-    "slug": "stream-hub",
+    "name": "StreamHub",
+    "slug": "streamhub",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.streamhub.app",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+        "backgroundColor": "#0A0A0E"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "splash": {
+      "backgroundColor": "#0A0A0E",
+      "resizeMode": "contain"
     }
   }
 }
