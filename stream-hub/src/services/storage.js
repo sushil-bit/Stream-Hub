@@ -87,3 +87,25 @@ export const toggleWatchlist = async (media) => {
     return false;
   }
 };
+
+export const removeContinueWatching = async (id) => {
+  try {
+    const list = await getContinueWatching();
+    const updated = list.filter((item) => (item.id || item.mal_id) !== id);
+    await AsyncStorage.setItem("streamhub_continue_watching", JSON.stringify(updated));
+    return updated;
+  } catch (e) {
+    console.error("Error removing item from continue watching:", e);
+    return [];
+  }
+};
+
+export const clearContinueWatching = async () => {
+  try {
+    await AsyncStorage.removeItem("streamhub_continue_watching");
+    return [];
+  } catch (e) {
+    console.error("Error clearing continue watching:", e);
+    return [];
+  }
+};
