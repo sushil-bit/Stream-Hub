@@ -13,6 +13,7 @@
       "package": "com.streamhub.app",
       "versionCode": 1,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0A0E"
       },
       "permissions": [
@@ -24,8 +25,9 @@
       "favicon": "./assets/favicon.png"
     },
     "splash": {
-      "backgroundColor": "#0A0A0E",
-      "resizeMode": "contain"
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0E"
     },
     "extra": {
       "eas": {
