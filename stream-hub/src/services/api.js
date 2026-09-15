@@ -40,3 +40,20 @@ export const fetchTopAnime = async () => {
     return [];
   }
 };
+
+export const searchMulti = async (query) => {
+  if (!query || !query.trim()) return [];
+  try {
+    const res = await fetch(
+      `${BASE_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query.trim())}&include_adult=false`
+    );
+    const data = await res.json();
+    // Filter out people or items without posters
+    return (data.results || []).filter(
+      (item) => (item.media_type === 'movie' || item.media_type === 'tv') && (item.poster_path || item.backdrop_path)
+    );
+  } catch (error) {
+    console.error('Multi-search error:', error);
+    return [];
+  }
+};
