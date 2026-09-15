@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect width="1080" height="1920" fill="#0A0A0E"/>
+  <defs>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF334B"/>
+      <stop offset="100%" stop-color="#700010"/>
+    </linearGradient>
+  </defs>
+  <circle cx="540" cy="900" r="160" fill="url(#glow)" opacity="0.15"/>
+  <path d="M 470 780 L 660 900 L 470 1020 Z" fill="#FF334B" />
+  <text x="540" y="1120" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="900" letter-spacing="6" fill="#FFFFFF" text-anchor="middle">STREAM<tspan fill="#FF334B">HUB</tspan></text>
+</svg>
