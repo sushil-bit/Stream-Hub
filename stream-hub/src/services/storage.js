@@ -55,3 +55,35 @@ export const getContinueWatching = async () => {
                                                                                                                                          }
                                                                                                                                          };
                                                                                                                                          
+const WATCHLIST_KEY = "@stream_hub_watchlist";
+
+export const getWatchlist = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(WATCHLIST_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error("Failed to load watchlist:", e);
+    return [];
+  }
+};
+
+export const toggleWatchlist = async (media) => {
+  try {
+    const list = await getWatchlist();
+    const id = media.id || media.mal_id;
+    const exists = list.some((item) => (item.id || item.mal_id) === id);
+
+    let updated;
+    if (exists) {
+      updated = list.filter((item) => (item.id || item.mal_id) !== id);
+    } else {
+      updated = [media, ...list];
+    }
+
+    await AsyncStorage.setItem(WATCHLIST_KEY, JSON.stringify(updated));
+    return !exists;
+  } catch (e) {
+    console.error("Failed to toggle watchlist:", e);
+    return false;
+  }
+};
