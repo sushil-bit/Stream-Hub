@@ -35,8 +35,21 @@ export default function SearchScreen({ navigation }) {
   const loadSuggested = async () => {
     try {
       setLoading(true);
-      const data = await fetchTrendingMovies();
-      setResults(Array.isArray(data) ? data : []);
+      const [movies, anime] = await Promise.all([
+        fetchTrendingMovies ? fetchTrendingMovies() : [],
+        fetchTopAnime ? fetchTopAnime() : [],
+      ]);
+
+      const formattedAnime = (Array.isArray(anime) ? anime : []).map((a) => ({
+        ...a,
+        isAnime: true,
+        poster_path: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url || a.poster_path,
+        vote_average: a.score || a.vote_average || 8.0,
+        release_date: a.aired?.from || a.year ? String(a.year) : "2026",
+      }));
+
+      const combined = [...(Array.isArray(movies) ? movies : []), ...formattedAnime];
+      setResults(combined);
     } catch (e) {
       console.warn("Suggested load error:", e);
     } finally {
@@ -67,10 +80,10 @@ export default function SearchScreen({ navigation }) {
   };
 
   const filteredResults = results.filter((item) => {
-    if (activeTab === "Movies") return item.media_type === "movie" || !item.isAnime;
+    if (activeTab === "Movies") return !item.isAnime && (item.media_type === "movie" || !item.media_type);
     if (activeTab === "Anime") {
       const title = (item.title || item.name || "").toLowerCase();
-      return item.isAnime || title.includes("anime");
+      return item.isAnime || item.genre_ids?.includes(16) || title.includes("anime");
     }
     return true;
   });
@@ -122,7 +135,7 @@ export default function SearchScreen({ navigation }) {
 
         <View style={styles.resultsMeta}>
           <Text style={styles.resultsTitle}>
-            {query.trim() ? "Results for \"" + query + "\"" : "🔥 Popular Searches"}
+            {query.trim() ? "Results for \"" + query + "\"" : "🔥 Popular Titles"}
           </Text>
           <Text style={styles.resultsCount}>{filteredResults.length} titles</Text>
         </View>
@@ -134,7 +147,7 @@ export default function SearchScreen({ navigation }) {
         ) : (
           <FlatList
             data={filteredResults}
-            keyExtractor={(item, index) => (item.id ? item.id.toString() : index.toString())}
+            keyExtractor={(item, index) => (item.mal_id ? "anime-" + item.mal_id : item.id ? String(item.id) : String(index))}
             numColumns={2}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.gridContainer}
@@ -147,9 +160,11 @@ export default function SearchScreen({ navigation }) {
               </View>
             }
             renderItem={({ item }) => {
-              const poster = item.poster_path
+              const poster = item.poster_path?.startsWith("http")
+                ? item.poster_path
+                : item.poster_path
                 ? IMAGE_URL + item.poster_path
-                : (item.images?.jpg?.image_url || "https://via.placeholder.com/300x450");
+                : "https://via.placeholder.com/300x450";
 
               const releaseYear =
                 item.release_date?.split("-")[0] || item.first_air_date?.split("-")[0] || "2026";
@@ -169,7 +184,7 @@ export default function SearchScreen({ navigation }) {
                     {item.vote_average ? (
                       <View style={styles.ratingBadge}>
                         <Ionicons name="star" size={11} color="#FFB800" />
-                        <Text style={styles.ratingText}>{item.vote_average.toFixed(1)}</Text>
+                        <Text style={styles.ratingText}>{Number(item.vote_average).toFixed(1)}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -177,7 +192,7 @@ export default function SearchScreen({ navigation }) {
                     {item.title || item.name}
                   </Text>
                   <Text style={styles.cardSubtext}>
-                    {releaseYear} • {item.media_type === "tv" ? "TV" : "Movie"}
+                    {releaseYear} • {item.isAnime ? "Anime" : item.media_type === "tv" ? "TV" : "Movie"}
                   </Text>
                 </TouchableOpacity>
               );
