@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
+import { saveWatchProgress } from "../services/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
@@ -19,8 +20,6 @@ const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 const SERVERS = [
   { id: "vidsrc_me", name: "Server 1 (VidSrc ME)" },
   { id: "vidlink", name: "Server 2 (VidLink)" },
-  { id: "vidsrc_sbs", name: "Server 3 (VidSrc SBS)" },
-  { id: "vidsrc_vip", name: "Server 4 (VidSrc VIP)" },
 ];
 
 export default function PlayerScreen({ route, navigation }) {
@@ -34,6 +33,18 @@ export default function PlayerScreen({ route, navigation }) {
 
   const tmdbId = media.id || media.mal_id || "550";
 
+  // Auto-record to Continue Watching when stream launches
+  useEffect(() => {
+    if (typeof saveWatchProgress === "function") {
+      saveWatchProgress({
+        ...media,
+        lastSeason: season,
+        lastEpisode: episode,
+        updatedAt: Date.now(),
+      }).catch((e) => console.warn("Save watch progress error:", e));
+    }
+  }, [media.id, media.mal_id, season, episode]);
+
   const getEmbedUrl = () => {
     switch (activeServer) {
       case "vidsrc_me":
@@ -44,14 +55,6 @@ export default function PlayerScreen({ route, navigation }) {
         return isTv
           ? "https://vidlink.pro/tv/" + tmdbId + "/" + season + "/" + episode
           : "https://vidlink.pro/movie/" + tmdbId;
-      case "vidsrc_sbs":
-        return isTv
-          ? "https://vidsrc.sbs/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
-          : "https://vidsrc.sbs/embed/movie?tmdb=" + tmdbId;
-      case "vidsrc_vip":
-        return isTv
-          ? "https://vidsrc.vip/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
-          : "https://vidsrc.vip/embed/movie?tmdb=" + tmdbId;
       default:
         return "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
     }
@@ -61,7 +64,6 @@ export default function PlayerScreen({ route, navigation }) {
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* Video Viewport */}
       <View style={styles.playerContainer}>
         <WebView
           key={activeServer + "-" + season + "-" + episode}
@@ -108,7 +110,6 @@ export default function PlayerScreen({ route, navigation }) {
 
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
-          {/* Header */}
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={24} color="#FFF" />
@@ -123,7 +124,6 @@ export default function PlayerScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Clean Server Selector */}
           <Text style={styles.sectionHeading}>Streaming Server</Text>
           <View style={styles.serverRow}>
             {SERVERS.map((srv) => {
@@ -145,7 +145,6 @@ export default function PlayerScreen({ route, navigation }) {
             })}
           </View>
 
-          {/* Episode Selectors */}
           {isTv && (
             <View style={styles.episodeSection}>
               <Text style={styles.sectionHeading}>Episodes</Text>
