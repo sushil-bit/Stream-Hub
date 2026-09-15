@@ -18,9 +18,9 @@ const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
   { id: "vidsrc_me", name: "Server 1 (VidSrc ME)" },
-  { id: "vidsrc_sbs", name: "Server 2 (VidSrc SBS)" },
-  { id: "moviesapi", name: "Server 3 (MoviesAPI)" },
-  { id: "autoembed", name: "Server 4 (AutoEmbed)" },
+  { id: "vidlink", name: "Server 2 (VidLink)" },
+  { id: "vidsrc_sbs", name: "Server 3 (VidSrc SBS)" },
+  { id: "vidsrc_vip", name: "Server 4 (VidSrc VIP)" },
 ];
 
 export default function PlayerScreen({ route, navigation }) {
@@ -40,18 +40,18 @@ export default function PlayerScreen({ route, navigation }) {
         return isTv
           ? "https://vidsrc.me/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
           : "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
+      case "vidlink":
+        return isTv
+          ? "https://vidlink.pro/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://vidlink.pro/movie/" + tmdbId;
       case "vidsrc_sbs":
         return isTv
-          ? "https://vidsrc.sbs/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://vidsrc.sbs/embed/movie/" + tmdbId;
-      case "moviesapi":
+          ? "https://vidsrc.sbs/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
+          : "https://vidsrc.sbs/embed/movie?tmdb=" + tmdbId;
+      case "vidsrc_vip":
         return isTv
-          ? "https://moviesapi.club/tv/" + tmdbId + "-" + season + "-" + episode
-          : "https://moviesapi.club/movie/" + tmdbId;
-      case "autoembed":
-        return isTv
-          ? "https://player.autoembed.cc/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://player.autoembed.cc/embed/movie/" + tmdbId;
+          ? "https://vidsrc.vip/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
+          : "https://vidsrc.vip/embed/movie?tmdb=" + tmdbId;
       default:
         return "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
     }
@@ -61,17 +61,17 @@ export default function PlayerScreen({ route, navigation }) {
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* Video Player Box */}
+      {/* Video Viewport */}
       <View style={styles.playerContainer}>
         <WebView
           key={activeServer + "-" + season + "-" + episode}
           source={{
             uri: getEmbedUrl(),
             headers: {
-              Referer: "https://vidsrc.me/",
+              Referer: activeServer === "vidlink" ? "https://vidlink.pro/" : "https://vidsrc.me/",
             },
           }}
-          userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+          userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
           allowsFullscreenVideo
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -87,8 +87,7 @@ export default function PlayerScreen({ route, navigation }) {
               url.startsWith("about:") ||
               url.startsWith("data:") ||
               url.includes("vidsrc") ||
-              url.includes("moviesapi") ||
-              url.includes("autoembed") ||
+              url.includes("vidlink") ||
               url.includes("stream") ||
               url.includes("m3u8") ||
               url.includes("cloudflare")
@@ -124,7 +123,7 @@ export default function PlayerScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Server Selectors */}
+          {/* Clean Server Selector */}
           <Text style={styles.sectionHeading}>Streaming Server</Text>
           <View style={styles.serverRow}>
             {SERVERS.map((srv) => {
@@ -146,7 +145,7 @@ export default function PlayerScreen({ route, navigation }) {
             })}
           </View>
 
-          {/* Episode Picker */}
+          {/* Episode Selectors */}
           {isTv && (
             <View style={styles.episodeSection}>
               <Text style={styles.sectionHeading}>Episodes</Text>
