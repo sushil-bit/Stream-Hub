@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -17,9 +17,9 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
-  { id: "vidsrc_in", name: "Server 1 (VidSrc Direct)" },
-  { id: "autoembed", name: "Server 2 (AutoEmbed)" },
-  { id: "superembed", name: "Server 3 (Multi)" },
+  { id: "superembed", name: "Server 1 (Multi)" },
+  { id: "twoembed", name: "Server 2 (2Embed)" },
+  { id: "vidsrc_icu", name: "Server 3 (VidSrc ICU)" },
   { id: "smashy", name: "Server 4 (Smashy)" },
 ];
 
@@ -27,7 +27,7 @@ export default function PlayerScreen({ route, navigation }) {
   const media = route?.params?.media || {};
   const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
-  const [activeServer, setActiveServer] = useState("vidsrc_in");
+  const [activeServer, setActiveServer] = useState("superembed");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [playerLoading, setPlayerLoading] = useState(true);
@@ -36,42 +36,36 @@ export default function PlayerScreen({ route, navigation }) {
 
   const getSourceUrl = () => {
     switch (activeServer) {
-      case "vidsrc_in":
-        return isTv
-          ? "https://vidsrc.in/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://vidsrc.in/embed/movie/" + tmdbId;
-      case "autoembed":
-        return isTv
-          ? "https://player.autoembed.cc/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://player.autoembed.cc/embed/movie/" + tmdbId;
       case "superembed":
         return isTv
           ? "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1&s=" + season + "&e=" + episode
           : "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
+      case "twoembed":
+        return isTv
+          ? "https://www.2embed.cc/embedtv/" + tmdbId + "&s=" + season + "&e=" + episode
+          : "https://www.2embed.cc/embed/" + tmdbId;
+      case "vidsrc_icu":
+        return isTv
+          ? "https://vidsrc.icu/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://vidsrc.icu/embed/movie/" + tmdbId;
       case "smashy":
         return isTv
           ? "https://player.smashy.stream/tv/" + tmdbId + "?s=" + season + "&e=" + episode
           : "https://player.smashy.stream/movie/" + tmdbId;
       default:
-        return "https://vidsrc.in/embed/movie/" + tmdbId;
+        return "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
     }
-  };
-
-  const handleServerSwitch = (serverId) => {
-    setPlayerLoading(true);
-    setActiveServer(serverId);
   };
 
   return (
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* Video Viewport */}
       <View style={styles.playerContainer}>
         <WebView
           key={activeServer + "-" + season + "-" + episode}
           source={{ uri: getSourceUrl() }}
-          userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+          userAgent="Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
           allowsFullscreenVideo
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -84,11 +78,12 @@ export default function PlayerScreen({ route, navigation }) {
           renderError={() => (
             <View style={styles.errorBox}>
               <Ionicons name="alert-circle-outline" size={36} color="#FF334B" />
-              <Text style={styles.errorText}>Connecting to alternative stream...</Text>
+              <Text style={styles.errorText}>Server blocked by network. Switch servers below.</Text>
             </View>
           )}
           onLoadStart={() => setPlayerLoading(true)}
           onLoadEnd={() => setPlayerLoading(false)}
+          onError={() => setPlayerLoading(false)}
           style={styles.webview}
         />
 
@@ -101,7 +96,6 @@ export default function PlayerScreen({ route, navigation }) {
 
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
-          {/* Header Row */}
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={24} color="#FFF" />
@@ -116,7 +110,6 @@ export default function PlayerScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Server Selector */}
           <Text style={styles.sectionHeading}>Streaming Server</Text>
           <View style={styles.serverRow}>
             {SERVERS.map((srv) => {
@@ -125,7 +118,10 @@ export default function PlayerScreen({ route, navigation }) {
                 <TouchableOpacity
                   key={srv.id}
                   style={[styles.serverChip, active && styles.serverChipActive]}
-                  onPress={() => handleServerSwitch(srv.id)}
+                  onPress={() => {
+                    setPlayerLoading(true);
+                    setActiveServer(srv.id);
+                  }}
                 >
                   <Text style={[styles.serverText, active && styles.serverTextActive]}>
                     {srv.name}
@@ -135,7 +131,6 @@ export default function PlayerScreen({ route, navigation }) {
             })}
           </View>
 
-          {/* Episode Selector for TV / Anime */}
           {isTv && (
             <View style={styles.episodeSection}>
               <Text style={styles.sectionHeading}>Episodes</Text>
@@ -186,8 +181,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#0A0A0E",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
   },
-  errorText: { color: "#8E8E9E", fontSize: 13, marginTop: 8 },
+  errorText: { color: "#8E8E9E", fontSize: 13, marginTop: 8, textAlign: "center" },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   backBtn: {
     width: 40,
