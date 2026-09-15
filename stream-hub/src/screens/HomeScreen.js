@@ -21,6 +21,7 @@ import {
 } from "../services/api";
 import { getContinueWatching, removeContinueWatching, clearContinueWatching } from "../services/storage";
 import HeroCarousel from "../components/Feed/HeroCarousel";
+import { HomeSkeleton } from "../components/Common/SkeletonLoader";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
@@ -87,9 +88,11 @@ export default function HomeScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loaderContainer}>
+      <View style={{ flex: 1, backgroundColor: "#0A0A0E" }}>
         <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-        <ActivityIndicator size="large" color="#FF334B" />
+        <SafeAreaView style={{ flex: 1 }}>
+          <HomeSkeleton />
+        </SafeAreaView>
       </View>
     );
   }
