@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -17,34 +17,17 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
-  { id: "twoembed", name: "Server 1 (2Embed Sandbox)" },
-  { id: "vidsrc_icu", name: "Server 2 (VidSrc)" },
+  { id: "vidsrc_sbs", name: "Server 1 (VidSrc Pro)" },
+  { id: "vidsrc_me", name: "Server 2 (VidSrc Stream)" },
   { id: "superembed", name: "Server 3 (MultiEmbed)" },
+  { id: "twoembed", name: "Server 4 (2Embed Direct)" },
 ];
-
-// Injected JavaScript that neutralizes popups and ad redirects inside the webview
-const AD_BLOCK_JS = `
-  (function() {
-    window.open = function() { return null; };
-    window.alert = function() { return null; };
-    document.addEventListener("click", function(e) {
-      var target = e.target;
-      while (target && target !== document) {
-        if (target.tagName === "A" && target.target === "_blank") {
-          target.target = "_self";
-        }
-        target = target.parentNode;
-      }
-    }, true);
-  })();
-  true;
-`;
 
 export default function PlayerScreen({ route, navigation }) {
   const media = route?.params?.media || {};
   const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
-  const [activeServer, setActiveServer] = useState("twoembed");
+  const [activeServer, setActiveServer] = useState("vidsrc_sbs");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [playerLoading, setPlayerLoading] = useState(true);
@@ -53,24 +36,28 @@ export default function PlayerScreen({ route, navigation }) {
 
   const getEmbedUrl = () => {
     switch (activeServer) {
-      case "twoembed":
+      case "vidsrc_sbs":
         return isTv
-          ? "https://www.2embed.cc/embedtv/" + tmdbId + "&s=" + season + "&e=" + episode
-          : "https://www.2embed.cc/embed/" + tmdbId;
-      case "vidsrc_icu":
+          ? "https://vidsrc.sbs/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://vidsrc.sbs/embed/movie/" + tmdbId;
+      case "vidsrc_me":
         return isTv
-          ? "https://vidsrc.icu/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://vidsrc.icu/embed/movie/" + tmdbId;
+          ? "https://vidsrc.me/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
+          : "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
       case "superembed":
         return isTv
           ? "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1&s=" + season + "&e=" + episode
           : "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
+      case "twoembed":
+        return isTv
+          ? "https://www.2embed.cc/embedtv/" + tmdbId + "&s=" + season + "&e=" + episode
+          : "https://www.2embed.cc/embed/" + tmdbId;
       default:
-        return "https://www.2embed.cc/embed/" + tmdbId;
+        return "https://vidsrc.sbs/embed/movie/" + tmdbId;
     }
   };
 
-  // Embed directly into an HTML sandbox document to fulfill 2embed requirements
+  // Embed inside clean HTML iframe WITHOUT the sandbox attribute
   const getHtmlContent = () => {
     const streamUrl = getEmbedUrl();
     return `
@@ -91,7 +78,6 @@ export default function PlayerScreen({ route, navigation }) {
             webkitallowfullscreen="true" 
             mozallowfullscreen="true" 
             scrolling="no"
-            sandbox="allow-scripts allow-same-origin allow-forms"
           ></iframe>
         </body>
       </html>
@@ -106,32 +92,35 @@ export default function PlayerScreen({ route, navigation }) {
         <WebView
           key={activeServer + "-" + season + "-" + episode}
           originWhitelist={["*"]}
-          source={{ html: getHtmlContent(), baseUrl: "https://www.2embed.cc" }}
-          injectedJavaScript={AD_BLOCK_JS}
+          source={{ html: getHtmlContent() }}
+          userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
           allowsFullscreenVideo
           javaScriptEnabled
           domStorageEnabled
+          thirdPartyCookiesEnabled
+          sharedCookiesEnabled
+          mixedContentMode="always"
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
           onShouldStartLoadWithRequest={(req) => {
             const url = req.url.toLowerCase();
-            // Allow the initial html, the streaming provider domain, and internal data
+            // Block external ad popups and non-video redirects
             if (
               url.startsWith("data:") ||
               url.startsWith("about:") ||
-              url.includes("2embed.cc") ||
               url.includes("vidsrc") ||
-              url.includes("multiembed")
+              url.includes("multiembed") ||
+              url.includes("2embed") ||
+              url.includes("stream") ||
+              url.includes("m3u8")
             ) {
               return true;
             }
-            // Block any ad click-outs, betting sites, or external popups
             return false;
           }}
           onLoadStart={() => setPlayerLoading(true)}
           onLoadEnd={() => setPlayerLoading(false)}
-          onError={() => setPlayerLoading(false)}
           style={styles.webview}
         />
 
@@ -144,7 +133,6 @@ export default function PlayerScreen({ route, navigation }) {
 
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
-          {/* Header Row */}
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={24} color="#FFF" />
@@ -159,7 +147,6 @@ export default function PlayerScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Server Selector */}
           <Text style={styles.sectionHeading}>Streaming Server</Text>
           <View style={styles.serverRow}>
             {SERVERS.map((srv) => {
@@ -181,7 +168,6 @@ export default function PlayerScreen({ route, navigation }) {
             })}
           </View>
 
-          {/* Episode Selector */}
           {isTv && (
             <View style={styles.episodeSection}>
               <Text style={styles.sectionHeading}>Episodes</Text>
