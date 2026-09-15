@@ -57,3 +57,28 @@ export const searchMulti = async (query) => {
     return [];
   }
 };
+
+export const fetchSeasonDetails = async (tvId, seasonNum = 1) => {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/tv/${tvId}/season/${seasonNum}?api_key=${API_KEY}&language=en-US`
+    );
+    const data = await res.json();
+    return data.episodes || [];
+  } catch (err) {
+    console.error("Failed to fetch season episodes:", err);
+    return [];
+  }
+};
+
+export const fetchTvDetails = async (tvId) => {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/tv/${tvId}?api_key=${API_KEY}&language=en-US`
+    );
+    return await res.json();
+  } catch (err) {
+    console.error("Failed to fetch tv details:", err);
+    return null;
+  }
+};
