@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -17,29 +17,42 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
-  { id: "superembed", name: "Server 1 (Multi)" },
-  { id: "twoembed", name: "Server 2 (2Embed)" },
-  { id: "vidsrc_icu", name: "Server 3 (VidSrc ICU)" },
-  { id: "smashy", name: "Server 4 (Smashy)" },
+  { id: "twoembed", name: "Server 1 (2Embed Sandbox)" },
+  { id: "vidsrc_icu", name: "Server 2 (VidSrc)" },
+  { id: "superembed", name: "Server 3 (MultiEmbed)" },
 ];
+
+// Injected JavaScript that neutralizes popups and ad redirects inside the webview
+const AD_BLOCK_JS = `
+  (function() {
+    window.open = function() { return null; };
+    window.alert = function() { return null; };
+    document.addEventListener("click", function(e) {
+      var target = e.target;
+      while (target && target !== document) {
+        if (target.tagName === "A" && target.target === "_blank") {
+          target.target = "_self";
+        }
+        target = target.parentNode;
+      }
+    }, true);
+  })();
+  true;
+`;
 
 export default function PlayerScreen({ route, navigation }) {
   const media = route?.params?.media || {};
   const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
-  const [activeServer, setActiveServer] = useState("superembed");
+  const [activeServer, setActiveServer] = useState("twoembed");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [playerLoading, setPlayerLoading] = useState(true);
 
   const tmdbId = media.id || media.mal_id || "550";
 
-  const getSourceUrl = () => {
+  const getEmbedUrl = () => {
     switch (activeServer) {
-      case "superembed":
-        return isTv
-          ? "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1&s=" + season + "&e=" + episode
-          : "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
       case "twoembed":
         return isTv
           ? "https://www.2embed.cc/embedtv/" + tmdbId + "&s=" + season + "&e=" + episode
@@ -48,13 +61,41 @@ export default function PlayerScreen({ route, navigation }) {
         return isTv
           ? "https://vidsrc.icu/embed/tv/" + tmdbId + "/" + season + "/" + episode
           : "https://vidsrc.icu/embed/movie/" + tmdbId;
-      case "smashy":
+      case "superembed":
         return isTv
-          ? "https://player.smashy.stream/tv/" + tmdbId + "?s=" + season + "&e=" + episode
-          : "https://player.smashy.stream/movie/" + tmdbId;
+          ? "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1&s=" + season + "&e=" + episode
+          : "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
       default:
-        return "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
+        return "https://www.2embed.cc/embed/" + tmdbId;
     }
+  };
+
+  // Embed directly into an HTML sandbox document to fulfill 2embed requirements
+  const getHtmlContent = () => {
+    const streamUrl = getEmbedUrl();
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body, html { width: 100%; height: 100%; background: #000; overflow: hidden; }
+            iframe { width: 100%; height: 100%; border: none; }
+          </style>
+        </head>
+        <body>
+          <iframe 
+            src="${streamUrl}" 
+            allowfullscreen="true" 
+            webkitallowfullscreen="true" 
+            mozallowfullscreen="true" 
+            scrolling="no"
+            sandbox="allow-scripts allow-same-origin allow-forms"
+          ></iframe>
+        </body>
+      </html>
+    `;
   };
 
   return (
@@ -64,23 +105,30 @@ export default function PlayerScreen({ route, navigation }) {
       <View style={styles.playerContainer}>
         <WebView
           key={activeServer + "-" + season + "-" + episode}
-          source={{ uri: getSourceUrl() }}
-          userAgent="Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+          originWhitelist={["*"]}
+          source={{ html: getHtmlContent(), baseUrl: "https://www.2embed.cc" }}
+          injectedJavaScript={AD_BLOCK_JS}
           allowsFullscreenVideo
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          thirdPartyCookiesEnabled={true}
-          sharedCookiesEnabled={true}
-          mixedContentMode="always"
-          allowsInlineMediaPlayback={true}
+          javaScriptEnabled
+          domStorageEnabled
+          allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
-          renderError={() => (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle-outline" size={36} color="#FF334B" />
-              <Text style={styles.errorText}>Server blocked by network. Switch servers below.</Text>
-            </View>
-          )}
+          onShouldStartLoadWithRequest={(req) => {
+            const url = req.url.toLowerCase();
+            // Allow the initial html, the streaming provider domain, and internal data
+            if (
+              url.startsWith("data:") ||
+              url.startsWith("about:") ||
+              url.includes("2embed.cc") ||
+              url.includes("vidsrc") ||
+              url.includes("multiembed")
+            ) {
+              return true;
+            }
+            // Block any ad click-outs, betting sites, or external popups
+            return false;
+          }}
           onLoadStart={() => setPlayerLoading(true)}
           onLoadEnd={() => setPlayerLoading(false)}
           onError={() => setPlayerLoading(false)}
@@ -96,6 +144,7 @@ export default function PlayerScreen({ route, navigation }) {
 
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
+          {/* Header Row */}
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={24} color="#FFF" />
@@ -110,6 +159,7 @@ export default function PlayerScreen({ route, navigation }) {
             </View>
           </View>
 
+          {/* Server Selector */}
           <Text style={styles.sectionHeading}>Streaming Server</Text>
           <View style={styles.serverRow}>
             {SERVERS.map((srv) => {
@@ -131,6 +181,7 @@ export default function PlayerScreen({ route, navigation }) {
             })}
           </View>
 
+          {/* Episode Selector */}
           {isTv && (
             <View style={styles.episodeSection}>
               <Text style={styles.sectionHeading}>Episodes</Text>
@@ -176,14 +227,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  errorBox: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#0A0A0E",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  errorText: { color: "#8E8E9E", fontSize: 13, marginTop: 8, textAlign: "center" },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   backBtn: {
     width: 40,
