@@ -1,303 +1,150 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
-  Image,
-  TouchableOpacity,
-  Dimensions,
-  Animated,
   StatusBar,
+  TouchableOpacity,
+  Image,
+  Dimensions,
   ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import {
+  fetchTrendingMovies,
+  fetchTopAnime,
+  IMAGE_BASE_URL,
+} from "../services/api";
+import { getContinueWatching } from "../services/storage";
+import HeroCarousel from "../components/Feed/HeroCarousel";
 
-import UserProfileHeader from '../components/Header/UserProfileHeader';
-import CategoryTabRow from '../components/Lists/CategoryTabRow';
-import * as API from '../services/api';
-import * as Storage from '../services/storage';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH * 0.62;
-const SPACING = 14;
-const SNAP_INTERVAL = CARD_WIDTH + SPACING;
-const SIDE_SPACER = (SCREEN_WIDTH - CARD_WIDTH) / 2;
-const IMAGE_URL = API.IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/w500';
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
 export default function HomeScreen({ navigation }) {
-  const [loading, setLoading] = useState(true);
   const [trending, setTrending] = useState([]);
-  const [animeList, setAnimeList] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('Trending');
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const [anime, setAnime] = useState([]);
+  const [continueWatching, setContinueWatching] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadFeed();
+    loadContent();
   }, []);
 
-  const loadFeed = async () => {
-    setLoading(true);
+  useFocusEffect(
+    useCallback(() => {
+      loadContinueWatching();
+    }, [])
+  );
 
-    // 1. Fetch Trending independently
+  const loadContent = async () => {
     try {
-      const fetchTrend = API.fetchTrending || API.fetchTrendingMovies || API.getTrending;
-      if (typeof fetchTrend === 'function') {
-        const trendData = await fetchTrend();
-        if (Array.isArray(trendData) && trendData.length > 0) {
-          setTrending(trendData.slice(0, 10));
-        }
-      }
-    } catch (e) {
-      console.warn('Trending error:', e);
-    }
+      setLoading(true);
+      const [trendingData, animeData] = await Promise.all([
+        fetchTrendingMovies ? fetchTrendingMovies() : [],
+        fetchTopAnime ? fetchTopAnime() : [],
+      ]);
 
-    // 2. Fetch Anime independently
-    try {
-      const fetchAnime = API.fetchTopAnime || API.fetchTopAiringAnime || API.fetchAnime;
-      if (typeof fetchAnime === 'function') {
-        const aData = await fetchAnime();
-        if (Array.isArray(aData) && aData.length > 0) {
-          setAnimeList(aData.slice(0, 10));
-        }
-      }
+      setTrending(Array.isArray(trendingData) ? trendingData : []);
+      const formattedAnime = (Array.isArray(animeData) ? animeData : []).map((a) => ({
+        ...a,
+        isAnime: true,
+        poster_path: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url,
+      }));
+      setAnime(formattedAnime);
     } catch (e) {
-      console.warn('Anime error:', e);
+      console.warn("Content fetch error:", e);
+    } finally {
+      setLoading(false);
     }
-
-    // 3. Fetch History
-    try {
-      const histFn = Storage.getWatchHistory || Storage.getHistory;
-      if (typeof histFn === 'function') {
-        const hData = await histFn();
-        if (Array.isArray(hData)) setHistory(hData);
-      }
-    } catch (e) {
-      console.warn('History error:', e);
-    }
-
-    setLoading(false);
   };
 
-  const activeItem = trending[activeIndex];
+  const loadContinueWatching = async () => {
+    try {
+      if (typeof getContinueWatching === "function") {
+        const history = await getContinueWatching();
+        setContinueWatching(Array.isArray(history) ? history : []);
+      }
+    } catch (e) {
+      console.warn("Load continue watching error:", e);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <ActivityIndicator size="large" color="#FF334B" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
       <LinearGradient
-        colors={['#3B0D18', '#140E14', '#0A0A0E']}
-        locations={[0, 0.4, 0.8]}
+        colors={["#2A0912", "#140E14", "#0A0A0E"]}
+        locations={[0, 0.3, 0.7]}
         style={StyleSheet.absoluteFillObject}
       />
 
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 130 }}
-        >
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
           {/* Header */}
-          <UserProfileHeader
-            onSearchPress={() => navigation.navigate('SearchScreen')}
-            onNotificationPress={() => {}}
-          />
-
-          {/* Category Chips */}
-          <CategoryTabRow
-            selected={selectedCategory}
-            onSelect={setSelectedCategory}
-          />
-
-          {/* Hero 3D Fan Carousel */}
-          {loading && trending.length === 0 ? (
-            <View style={{ height: 260, justifyContent: 'center', alignItems: 'center' }}>
-              <ActivityIndicator size="small" color="#FF334B" />
+          <View style={styles.topBar}>
+            <View style={styles.brandGroup}>
+              <Text style={styles.brandTitle}>STREAM</Text>
+              <Text style={styles.brandSub}>HUB</Text>
             </View>
-          ) : trending.length > 0 ? (
-            <View style={styles.carouselWrapper}>
-              <Animated.FlatList
-                data={trending}
-                keyExtractor={(item, index) => (item.id ? item.id.toString() : index.toString())}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                snapToInterval={SNAP_INTERVAL}
-                snapToAlignment="start"
-                decelerationRate="fast"
-                bounces={false}
-                initialNumToRender={3}
-                maxToRenderPerBatch={3}
-                windowSize={5}
-                removeClippedSubviews={false}
-                contentContainerStyle={{ paddingHorizontal: SIDE_SPACER }}
-                onScroll={Animated.event(
-                  [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                  { useNativeDriver: true }
-                )}
-                onMomentumScrollEnd={(e) => {
-                  const idx = Math.round(e.nativeEvent.contentOffset.x / SNAP_INTERVAL);
-                  setActiveIndex(Math.max(0, Math.min(idx, trending.length - 1)));
-                }}
-                renderItem={({ item, index }) => {
-                  const inputRange = [
-                    (index - 1) * SNAP_INTERVAL,
-                    index * SNAP_INTERVAL,
-                    (index + 1) * SNAP_INTERVAL,
-                  ];
+            <TouchableOpacity style={styles.searchIconBtn} onPress={() => navigation.navigate("Explore")}>
+              <Ionicons name="search" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
 
-                  const scale = scrollX.interpolate({
-                    inputRange,
-                    outputRange: [0.86, 1, 0.86],
-                    extrapolate: 'clamp',
-                  });
-
-                  const opacity = scrollX.interpolate({
-                    inputRange,
-                    outputRange: [0.55, 1, 0.55],
-                    extrapolate: 'clamp',
-                  });
-
-                  const poster = item.poster_path
-                    ? `${IMAGE_URL}${item.poster_path}`
-                    : 'https://via.placeholder.com/300x450';
-
-                  return (
-                    <Animated.View
-                      style={[
-                        styles.heroCard,
-                        {
-                          transform: [{ scale }],
-                          opacity,
-                        },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        activeOpacity={0.9}
-                        style={{ width: '100%', height: '100%' }}
-                        onPress={() => navigation.navigate('DetailsScreen', { media: item })}
-                      >
-                        <Image source={{ uri: poster }} style={styles.heroPoster} />
-                        <LinearGradient
-                          colors={['transparent', 'rgba(10,10,14,0.85)']}
-                          style={StyleSheet.absoluteFillObject}
-                        />
-                        <TouchableOpacity
-                          style={styles.playFab}
-                          onPress={() => navigation.navigate('PlayerScreen', { media: item })}
-                        >
-                          <Ionicons name="play" size={20} color="#FFF" style={{ marginLeft: 2 }} />
-                        </TouchableOpacity>
-                      </TouchableOpacity>
-                    </Animated.View>
-                  );
-                }}
-              />
-
-              {/* Active Movie Info */}
-              {activeItem && (
-                <View style={styles.activeMeta}>
-                  <Text style={styles.metaYear}>
-                    {activeItem.release_date?.split('-')[0] ||
-                      activeItem.first_air_date?.split('-')[0] ||
-                      '2026'}
-                  </Text>
-                  <Text style={styles.metaTitle} numberOfLines={1}>
-                    {activeItem.title || activeItem.name}
-                  </Text>
-                  <View style={styles.badgeRow}>
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>
-                        {activeItem.media_type ? activeItem.media_type.toUpperCase() : 'MOVIE'}
-                      </Text>
-                    </View>
-                    <View style={[styles.badge, styles.ratingBadge]}>
-                      <Ionicons name="star" size={12} color="#FFB800" />
-                      <Text style={[styles.badgeText, { color: '#FFB800', marginLeft: 4 }]}>
-                        {activeItem.vote_average ? activeItem.vote_average.toFixed(1) : '7.8'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              {/* Pagination Dots */}
-              <View style={styles.dotRow}>
-                {trending.slice(0, 5).map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      activeIndex === i ? styles.dotActive : styles.dotInactive,
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {/* Continue Watching */}
-          {history.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  <Text style={{ color: '#FF334B' }}>▸▸ </Text>Continue Watching
-                </Text>
-                <TouchableOpacity>
-                  <Text style={styles.seeAllText}>See all</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfRow}>
-                {history.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.historyCard}
-                    onPress={() => navigation.navigate('PlayerScreen', { media: item })}
-                  >
-                    <Image
-                      source={{ uri: `${IMAGE_URL}${item.backdrop_path || item.poster_path}` }}
-                      style={styles.historyThumb}
-                    />
-                    <Text style={styles.historyTitle} numberOfLines={1}>
-                      {item.title || item.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+          {/* Hero 3D Carousel */}
+          {trending.length > 0 && (
+            <HeroCarousel
+              items={trending.slice(0, 7)}
+              onItemPress={(item) => navigation.navigate("DetailsScreen", { media: item })}
+              onPlayPress={(item) => navigation.navigate("PlayerScreen", { media: item })}
+            />
           )}
 
-          {/* Top Airing Anime Shelf */}
-          {animeList.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  <Ionicons name="sparkles" size={17} color="#FF334B" /> Top Airing Anime
-                </Text>
-                <TouchableOpacity>
-                  <Text style={styles.seeAllText}>See all</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfRow}>
-                {animeList.map((anime, idx) => {
-                  const poster =
-                    anime.images?.jpg?.large_image_url ||
-                    anime.images?.jpg?.image_url ||
-                    (anime.poster_path ? `${IMAGE_URL}${anime.poster_path}` : '');
+          {/* Continue Watching Row */}
+          {continueWatching.length > 0 && (
+            <View style={styles.shelfSection}>
+              <Text style={styles.shelfTitle}>Continue Watching</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfList}>
+                {continueWatching.map((item, idx) => {
+                  const poster = item.poster_path?.startsWith("http")
+                    ? item.poster_path
+                    : item.poster_path
+                    ? IMAGE_URL + item.poster_path
+                    : "https://via.placeholder.com/300x450";
 
                   return (
                     <TouchableOpacity
-                      key={anime.mal_id || anime.id || idx}
-                      style={styles.posterCard}
-                      onPress={() => navigation.navigate('DetailsScreen', { media: anime })}
+                      key={"cw-" + (item.id || idx)}
+                      style={styles.cwCard}
+                      activeOpacity={0.85}
+                      onPress={() => navigation.navigate("PlayerScreen", { media: item })}
                     >
-                      <Image source={{ uri: poster }} style={styles.posterThumb} />
-                      <Text style={styles.posterTitle} numberOfLines={1}>
-                        {anime.title || anime.name}
+                      <Image source={{ uri: poster }} style={styles.cwPoster} />
+                      <View style={styles.cwOverlay}>
+                        <View style={styles.cwPlayCircle}>
+                          <Ionicons name="play" size={16} color="#FFF" />
+                        </View>
+                      </View>
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {item.title || item.name}
                       </Text>
+                      {item.lastEpisode ? (
+                        <Text style={styles.cardSub}>EP {item.lastEpisode}</Text>
+                      ) : null}
                     </TouchableOpacity>
                   );
                 })}
@@ -306,36 +153,52 @@ export default function HomeScreen({ navigation }) {
           )}
 
           {/* Trending Movies Shelf */}
-          {trending.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  <Ionicons name="flame" size={18} color="#FF334B" /> Trending Movies
-                </Text>
-                <TouchableOpacity>
-                  <Text style={styles.seeAllText}>See all</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfRow}>
-                {trending.map((item, idx) => (
+          <View style={styles.shelfSection}>
+            <Text style={styles.shelfTitle}>Trending Movies</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfList}>
+              {trending.map((item, idx) => {
+                const poster = item.poster_path ? IMAGE_URL + item.poster_path : "https://via.placeholder.com/300x450";
+                return (
                   <TouchableOpacity
-                    key={item.id || idx}
-                    style={styles.posterCard}
-                    onPress={() => navigation.navigate('DetailsScreen', { media: item })}
+                    key={"trend-" + (item.id || idx)}
+                    style={styles.mediaCard}
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate("DetailsScreen", { media: item })}
                   >
-                    <Image
-                      source={{ uri: `${IMAGE_URL}${item.poster_path}` }}
-                      style={styles.posterThumb}
-                    />
-                    <Text style={styles.posterTitle} numberOfLines={1}>
+                    <Image source={{ uri: poster }} style={styles.cardPoster} />
+                    <Text style={styles.cardTitle} numberOfLines={1}>
                       {item.title || item.name}
                     </Text>
+                    <Text style={styles.cardSub}>{item.release_date?.split("-")[0] || "Movie"}</Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+                );
+              })}
+            </ScrollView>
+          </View>
 
+          {/* Top Airing Anime Shelf */}
+          <View style={styles.shelfSection}>
+            <Text style={styles.shelfTitle}>Top Airing Anime</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfList}>
+              {anime.map((item, idx) => {
+                const poster = item.poster_path || "https://via.placeholder.com/300x450";
+                return (
+                  <TouchableOpacity
+                    key={"anime-" + (item.mal_id || idx)}
+                    style={styles.mediaCard}
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate("DetailsScreen", { media: item })}
+                  >
+                    <Image source={{ uri: poster }} style={styles.cardPoster} />
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      {item.title || item.name}
+                    </Text>
+                    <Text style={styles.cardSub}>Anime</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -343,65 +206,53 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0E' },
-  carouselWrapper: { marginTop: 4, alignItems: 'center' },
-  heroCard: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.38,
-    borderRadius: 24,
-    marginRight: SPACING,
-    overflow: 'hidden',
-    backgroundColor: '#161620',
-  },
-  heroPoster: { width: '100%', height: '100%', resizeMode: 'cover' },
-  playFab: {
-    position: 'absolute',
-    bottom: 14,
-    right: 14,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FF334B',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#FF334B',
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-  },
-  activeMeta: { alignItems: 'center', marginTop: 14, paddingHorizontal: 20 },
-  metaYear: { color: '#7E7E8A', fontSize: 12, letterSpacing: 1 },
-  metaTitle: { color: '#FFF', fontSize: 20, fontWeight: '800', marginTop: 2, textAlign: 'center' },
-  badgeRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  badge: {
-    backgroundColor: '#171720',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#242432',
-  },
-  ratingBadge: { flexDirection: 'row', alignItems: 'center' },
-  badgeText: { color: '#C0C0CB', fontSize: 11, fontWeight: '700' },
-  dotRow: { flexDirection: 'row', marginTop: 14, gap: 6 },
-  dot: { height: 5, borderRadius: 3 },
-  dotActive: { width: 18, backgroundColor: '#FF334B' },
-  dotInactive: { width: 6, backgroundColor: '#262632' },
-  section: { marginTop: 26 },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  container: { flex: 1, backgroundColor: "#0A0A0E" },
+  loaderContainer: { flex: 1, backgroundColor: "#0A0A0E", justifyContent: "center", alignItems: "center" },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginTop: 10,
+    marginBottom: 10,
   },
-  sectionTitle: { color: '#FFF', fontSize: 17, fontWeight: '700' },
-  seeAllText: { color: '#FF334B', fontSize: 13, fontWeight: '600' },
-  shelfRow: { paddingHorizontal: 20, gap: 14 },
-  historyCard: { width: 148 },
-  historyThumb: { width: 148, height: 92, borderRadius: 14, backgroundColor: '#1A1A24' },
-  historyTitle: { color: '#FFF', fontSize: 12, fontWeight: '600', marginTop: 6 },
-  posterCard: { width: 115 },
-  posterThumb: { width: 115, height: 165, borderRadius: 14, backgroundColor: '#161620' },
-  posterTitle: { color: '#C8C8D2', fontSize: 12, fontWeight: '600', marginTop: 6 },
+  brandGroup: { flexDirection: "row", alignItems: "center" },
+  brandTitle: { color: "#FFF", fontSize: 20, fontWeight: "900", letterSpacing: 1 },
+  brandSub: { color: "#FF334B", fontSize: 20, fontWeight: "900", letterSpacing: 1, marginLeft: 2 },
+  searchIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#161622",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  shelfSection: { marginTop: 24 },
+  shelfTitle: { color: "#FFF", fontSize: 17, fontWeight: "800", marginHorizontal: 20, marginBottom: 12 },
+  shelfList: { paddingHorizontal: 20, gap: 12 },
+  mediaCard: { width: 120 },
+  cardPoster: { width: 120, height: 170, borderRadius: 12, backgroundColor: "#161622" },
+  cardTitle: { color: "#FFF", fontSize: 13, fontWeight: "600", marginTop: 6 },
+  cardSub: { color: "#7E7E8E", fontSize: 11, marginTop: 2 },
+  cwCard: { width: 140 },
+  cwPoster: { width: 140, height: 95, borderRadius: 12, backgroundColor: "#161622" },
+  cwOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 140,
+    height: 95,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cwPlayCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,51,75,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });
