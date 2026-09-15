@@ -17,30 +17,33 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
-  { id: "vidsrc_vip", name: "Server 1 (VidSrc)" },
-  { id: "superembed", name: "Server 2 (Multi)" },
-  { id: "smashy", name: "Server 3 (Smashy)" },
-  { id: "embedsu", name: "Server 4 (VIP)" },
+  { id: "vidsrc_in", name: "Server 1 (VidSrc Direct)" },
+  { id: "autoembed", name: "Server 2 (AutoEmbed)" },
+  { id: "superembed", name: "Server 3 (Multi)" },
+  { id: "smashy", name: "Server 4 (Smashy)" },
 ];
 
 export default function PlayerScreen({ route, navigation }) {
   const media = route?.params?.media || {};
   const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
-  const [activeServer, setActiveServer] = useState("vidsrc_vip");
+  const [activeServer, setActiveServer] = useState("vidsrc_in");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [playerLoading, setPlayerLoading] = useState(true);
 
-  const webViewRef = useRef(null);
   const tmdbId = media.id || media.mal_id || "550";
 
   const getSourceUrl = () => {
     switch (activeServer) {
-      case "vidsrc_vip":
+      case "vidsrc_in":
         return isTv
-          ? "https://vidsrc.xyz/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
-          : "https://vidsrc.xyz/embed/movie?tmdb=" + tmdbId;
+          ? "https://vidsrc.in/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://vidsrc.in/embed/movie/" + tmdbId;
+      case "autoembed":
+        return isTv
+          ? "https://player.autoembed.cc/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://player.autoembed.cc/embed/movie/" + tmdbId;
       case "superembed":
         return isTv
           ? "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1&s=" + season + "&e=" + episode
@@ -49,12 +52,8 @@ export default function PlayerScreen({ route, navigation }) {
         return isTv
           ? "https://player.smashy.stream/tv/" + tmdbId + "?s=" + season + "&e=" + episode
           : "https://player.smashy.stream/movie/" + tmdbId;
-      case "embedsu":
-        return isTv
-          ? "https://embed.su/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://embed.su/embed/movie/" + tmdbId;
       default:
-        return "https://vidsrc.xyz/embed/movie?tmdb=" + tmdbId;
+        return "https://vidsrc.in/embed/movie/" + tmdbId;
     }
   };
 
@@ -67,12 +66,12 @@ export default function PlayerScreen({ route, navigation }) {
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* Video Player Box */}
+      {/* Video Viewport */}
       <View style={styles.playerContainer}>
         <WebView
-          ref={webViewRef}
           key={activeServer + "-" + season + "-" + episode}
           source={{ uri: getSourceUrl() }}
+          userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
           allowsFullscreenVideo
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -82,18 +81,12 @@ export default function PlayerScreen({ route, navigation }) {
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
-          onShouldStartLoadWithRequest={(req) => {
-            // Block external ad-redirects and popups, only allow embed streams
-            const url = req.url.toLowerCase();
-            return (
-              url.includes("vidsrc") ||
-              url.includes("multiembed") ||
-              url.includes("smashy") ||
-              url.includes("embed") ||
-              url.includes("cloudflare") ||
-              url.includes("about:blank")
-            );
-          }}
+          renderError={() => (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={36} color="#FF334B" />
+              <Text style={styles.errorText}>Connecting to alternative stream...</Text>
+            </View>
+          )}
           onLoadStart={() => setPlayerLoading(true)}
           onLoadEnd={() => setPlayerLoading(false)}
           style={styles.webview}
@@ -123,7 +116,7 @@ export default function PlayerScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Server Selectors */}
+          {/* Server Selector */}
           <Text style={styles.sectionHeading}>Streaming Server</Text>
           <View style={styles.serverRow}>
             {SERVERS.map((srv) => {
@@ -142,7 +135,7 @@ export default function PlayerScreen({ route, navigation }) {
             })}
           </View>
 
-          {/* TV / Anime Episode Selector */}
+          {/* Episode Selector for TV / Anime */}
           {isTv && (
             <View style={styles.episodeSection}>
               <Text style={styles.sectionHeading}>Episodes</Text>
@@ -188,6 +181,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  errorBox: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0A0A0E",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorText: { color: "#8E8E9E", fontSize: 13, marginTop: 8 },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   backBtn: {
     width: 40,
