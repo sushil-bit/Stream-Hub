@@ -19,7 +19,7 @@ import {
   fetchTopAnime,
   IMAGE_BASE_URL,
 } from "../services/api";
-import { getContinueWatching } from "../services/storage";
+import { getContinueWatching, removeContinueWatching, clearContinueWatching } from "../services/storage";
 import HeroCarousel from "../components/Feed/HeroCarousel";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -61,6 +61,17 @@ export default function HomeScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  
+  const handleRemoveItem = async (id) => {
+    const updated = await removeContinueWatching(id);
+    setContinueWatching(updated);
+  };
+
+  const handleClearAll = async () => {
+    await clearContinueWatching();
+    setContinueWatching([]);
   };
 
   const loadContinueWatching = async () => {
@@ -117,7 +128,12 @@ export default function HomeScreen({ navigation }) {
           {/* Continue Watching Row */}
           {continueWatching.length > 0 && (
             <View style={styles.shelfSection}>
-              <Text style={styles.shelfTitle}>Continue Watching</Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 12 }}>
+    <Text style={[styles.shelfTitle, { marginHorizontal: 0, marginBottom: 0 }]}>Continue Watching</Text>
+    <TouchableOpacity onPress={handleClearAll}>
+      <Text style={{ color: "#FF334B", fontSize: 12, fontWeight: "700" }}>Clear All</Text>
+    </TouchableOpacity>
+  </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfList}>
                 {continueWatching.map((item, idx) => {
                   const poster = item.poster_path?.startsWith("http")
@@ -127,12 +143,18 @@ export default function HomeScreen({ navigation }) {
                     : "https://via.placeholder.com/300x450";
 
                   return (
-                    <TouchableOpacity
-                      key={"cw-" + (item.id || idx)}
-                      style={styles.cwCard}
-                      activeOpacity={0.85}
-                      onPress={() => navigation.navigate("PlayerScreen", { media: item })}
-                    >
+                    <View key={"cw-" + (item.id || idx)} style={styles.cwCard}>
+    <TouchableOpacity
+      style={{ position: "absolute", top: 4, right: 4, zIndex: 10, padding: 2 }}
+      onPress={() => handleRemoveItem(item.id || item.mal_id)}
+    >
+      <Ionicons name="close-circle" size={18} color="#FFF" />
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={{ flex: 1 }}
+      activeOpacity={0.85}
+      onPress={() => navigation.navigate("PlayerScreen", { media: item })}
+    >
                       <Image source={{ uri: poster }} style={styles.cwPoster} />
                       <View style={styles.cwOverlay}>
                         <View style={styles.cwPlayCircle}>
@@ -146,9 +168,9 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.cardSub}>EP {item.lastEpisode}</Text>
                       ) : null}
                     </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+</View>
+);})}
+</ScrollView>
             </View>
           )}
 
