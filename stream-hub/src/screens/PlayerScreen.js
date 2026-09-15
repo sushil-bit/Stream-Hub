@@ -18,9 +18,9 @@ const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
   { id: "vidsrc_me", name: "Server 1 (VidSrc ME)" },
-  { id: "vidsrc_pm", name: "Server 2 (VidSrc PM)" },
-  { id: "vidsrc_xyz", name: "Server 3 (VidSrc Cloud)" },
-  { id: "vidsrc_net", name: "Server 4 (VidSrc Net)" },
+  { id: "vidsrc_sbs", name: "Server 2 (VidSrc SBS)" },
+  { id: "moviesapi", name: "Server 3 (MoviesAPI)" },
+  { id: "autoembed", name: "Server 4 (AutoEmbed)" },
 ];
 
 export default function PlayerScreen({ route, navigation }) {
@@ -40,18 +40,18 @@ export default function PlayerScreen({ route, navigation }) {
         return isTv
           ? "https://vidsrc.me/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
           : "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
-      case "vidsrc_pm":
+      case "vidsrc_sbs":
         return isTv
-          ? "https://vidsrc.pm/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
-          : "https://vidsrc.pm/embed/movie?tmdb=" + tmdbId;
-      case "vidsrc_xyz":
+          ? "https://vidsrc.sbs/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://vidsrc.sbs/embed/movie/" + tmdbId;
+      case "moviesapi":
         return isTv
-          ? "https://vidsrc.xyz/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
-          : "https://vidsrc.xyz/embed/movie?tmdb=" + tmdbId;
-      case "vidsrc_net":
+          ? "https://moviesapi.club/tv/" + tmdbId + "-" + season + "-" + episode
+          : "https://moviesapi.club/movie/" + tmdbId;
+      case "autoembed":
         return isTv
-          ? "https://vidsrc.net/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
-          : "https://vidsrc.net/embed/movie?tmdb=" + tmdbId;
+          ? "https://player.autoembed.cc/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://player.autoembed.cc/embed/movie/" + tmdbId;
       default:
         return "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
     }
@@ -61,7 +61,7 @@ export default function PlayerScreen({ route, navigation }) {
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* Embedded Stream Viewport */}
+      {/* Video Player Box */}
       <View style={styles.playerContainer}>
         <WebView
           key={activeServer + "-" + season + "-" + episode}
@@ -71,7 +71,7 @@ export default function PlayerScreen({ route, navigation }) {
               Referer: "https://vidsrc.me/",
             },
           }}
-          userAgent="Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+          userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
           allowsFullscreenVideo
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -81,6 +81,19 @@ export default function PlayerScreen({ route, navigation }) {
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
+          onShouldStartLoadWithRequest={(req) => {
+            const url = req.url.toLowerCase();
+            return (
+              url.startsWith("about:") ||
+              url.startsWith("data:") ||
+              url.includes("vidsrc") ||
+              url.includes("moviesapi") ||
+              url.includes("autoembed") ||
+              url.includes("stream") ||
+              url.includes("m3u8") ||
+              url.includes("cloudflare")
+            );
+          }}
           onLoadStart={() => setPlayerLoading(true)}
           onLoadEnd={() => setPlayerLoading(false)}
           onError={() => setPlayerLoading(false)}
@@ -111,7 +124,7 @@ export default function PlayerScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Active Server Mirrors */}
+          {/* Server Selectors */}
           <Text style={styles.sectionHeading}>Streaming Server</Text>
           <View style={styles.serverRow}>
             {SERVERS.map((srv) => {
@@ -133,7 +146,7 @@ export default function PlayerScreen({ route, navigation }) {
             })}
           </View>
 
-          {/* Episode Picker for TV Shows & Anime */}
+          {/* Episode Picker */}
           {isTv && (
             <View style={styles.episodeSection}>
               <Text style={styles.sectionHeading}>Episodes</Text>
