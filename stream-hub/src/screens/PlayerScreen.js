@@ -27,8 +27,8 @@ export default function PlayerScreen({ route, navigation }) {
   const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
   const [activeServer, setActiveServer] = useState("vidsrc_me");
-  const [season, setSeason] = useState(1);
-  const [episode, setEpisode] = useState(1);
+  const [season, setSeason] = useState(media.selectedSeason || 1);
+  const [episode, setEpisode] = useState(media.selectedEpisode || 1);
   const [playerLoading, setPlayerLoading] = useState(true);
 
   const tmdbId = media.id || media.mal_id || "550";
