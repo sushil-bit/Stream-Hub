@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  Animated,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
@@ -20,42 +21,67 @@ import * as API from '../services/api';
 import * as Storage from '../services/storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH * 0.58;
-const SPACING = 16;
+const CARD_WIDTH = SCREEN_WIDTH * 0.62;
+const SPACING = 14;
+const SNAP_INTERVAL = CARD_WIDTH + SPACING;
 const SIDE_SPACER = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 const IMAGE_URL = API.IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/w500';
 
 export default function HomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [trending, setTrending] = useState([]);
+  const [animeList, setAnimeList] = useState([]);
   const [history, setHistory] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('Trending');
   const [activeIndex, setActiveIndex] = useState(0);
 
+  const scrollX = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    loadData();
+    loadFeed();
   }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      // Fallback across common naming conventions
-      const fetchFn = API.fetchTrending || API.fetchTrendingMovies || API.getTrending;
-      if (typeof fetchFn === 'function') {
-        const data = await fetchFn();
-        setTrending(Array.isArray(data) ? data.slice(0, 10) : []);
-      }
+  const loadFeed = async () => {
+    setLoading(true);
 
-      const historyFn = Storage.getWatchHistory || Storage.getHistory;
-      if (typeof historyFn === 'function') {
-        const historyData = await historyFn();
-        setHistory(Array.isArray(historyData) ? historyData : []);
+    // 1. Fetch Trending independently
+    try {
+      const fetchTrend = API.fetchTrending || API.fetchTrendingMovies || API.getTrending;
+      if (typeof fetchTrend === 'function') {
+        const trendData = await fetchTrend();
+        if (Array.isArray(trendData) && trendData.length > 0) {
+          setTrending(trendData.slice(0, 10));
+        }
       }
     } catch (e) {
-      console.warn('Feed load error:', e);
-    } finally {
-      setLoading(false);
+      console.warn('Trending error:', e);
     }
+
+    // 2. Fetch Anime independently
+    try {
+      const fetchAnime = API.fetchTopAnime || API.fetchTopAiringAnime || API.fetchAnime;
+      if (typeof fetchAnime === 'function') {
+        const aData = await fetchAnime();
+        if (Array.isArray(aData) && aData.length > 0) {
+          setAnimeList(aData.slice(0, 10));
+        }
+      }
+    } catch (e) {
+      console.warn('Anime error:', e);
+    }
+
+    // 3. Fetch History
+    try {
+      const histFn = Storage.getWatchHistory || Storage.getHistory;
+      if (typeof histFn === 'function') {
+        const hData = await histFn();
+        if (Array.isArray(hData)) setHistory(hData);
+      }
+    } catch (e) {
+      console.warn('History error:', e);
+    }
+
+    setLoading(false);
   };
 
   const activeItem = trending[activeIndex];
@@ -64,7 +90,6 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Top Crimson Radial Glow */}
       <LinearGradient
         colors={['#3B0D18', '#140E14', '#0A0A0E']}
         locations={[0, 0.4, 0.8]}
@@ -74,9 +99,9 @@ export default function HomeScreen({ navigation }) {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingBottom: 130 }}
         >
-          {/* User Header */}
+          {/* Header */}
           <UserProfileHeader
             onSearchPress={() => navigation.navigate('SearchScreen')}
             onNotificationPress={() => {}}
@@ -88,68 +113,97 @@ export default function HomeScreen({ navigation }) {
             onSelect={setSelectedCategory}
           />
 
-          {/* 3D Carousel Section */}
-          {loading ? (
+          {/* Hero 3D Fan Carousel */}
+          {loading && trending.length === 0 ? (
             <View style={{ height: 260, justifyContent: 'center', alignItems: 'center' }}>
               <ActivityIndicator size="small" color="#FF334B" />
             </View>
           ) : trending.length > 0 ? (
-            <View style={styles.carouselContainer}>
-              <ScrollView
+            <View style={styles.carouselWrapper}>
+              <Animated.FlatList
+                data={trending}
+                keyExtractor={(item, index) => (item.id ? item.id.toString() : index.toString())}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                snapToInterval={CARD_WIDTH + SPACING}
+                snapToInterval={SNAP_INTERVAL}
+                snapToAlignment="start"
                 decelerationRate="fast"
+                bounces={false}
+                initialNumToRender={3}
+                maxToRenderPerBatch={3}
+                windowSize={5}
+                removeClippedSubviews={false}
                 contentContainerStyle={{ paddingHorizontal: SIDE_SPACER }}
+                onScroll={Animated.event(
+                  [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                  { useNativeDriver: true }
+                )}
                 onMomentumScrollEnd={(e) => {
-                  const idx = Math.round(
-                    e.nativeEvent.contentOffset.x / (CARD_WIDTH + SPACING)
-                  );
+                  const idx = Math.round(e.nativeEvent.contentOffset.x / SNAP_INTERVAL);
                   setActiveIndex(Math.max(0, Math.min(idx, trending.length - 1)));
                 }}
-              >
-                {trending.map((item, index) => {
-                  const isActive = activeIndex === index;
-                  const posterPath = item.poster_path
+                renderItem={({ item, index }) => {
+                  const inputRange = [
+                    (index - 1) * SNAP_INTERVAL,
+                    index * SNAP_INTERVAL,
+                    (index + 1) * SNAP_INTERVAL,
+                  ];
+
+                  const scale = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [0.86, 1, 0.86],
+                    extrapolate: 'clamp',
+                  });
+
+                  const opacity = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [0.55, 1, 0.55],
+                    extrapolate: 'clamp',
+                  });
+
+                  const poster = item.poster_path
                     ? `${IMAGE_URL}${item.poster_path}`
                     : 'https://via.placeholder.com/300x450';
 
                   return (
-                    <TouchableOpacity
-                      key={item.id ? item.id.toString() : index.toString()}
-                      activeOpacity={0.9}
-                      onPress={() => navigation.navigate('DetailsScreen', { media: item })}
+                    <Animated.View
                       style={[
                         styles.heroCard,
                         {
-                          transform: [{ scale: isActive ? 1 : 0.86 }],
-                          opacity: isActive ? 1 : 0.6,
+                          transform: [{ scale }],
+                          opacity,
                         },
                       ]}
                     >
-                      <Image source={{ uri: posterPath }} style={styles.heroPoster} />
-                      <LinearGradient
-                        colors={['transparent', 'rgba(10,10,14,0.85)']}
-                        style={StyleSheet.absoluteFillObject}
-                      />
                       <TouchableOpacity
-                        style={styles.playFab}
-                        onPress={() => navigation.navigate('PlayerScreen', { media: item })}
+                        activeOpacity={0.9}
+                        style={{ width: '100%', height: '100%' }}
+                        onPress={() => navigation.navigate('DetailsScreen', { media: item })}
                       >
-                        <Ionicons name="play" size={20} color="#FFF" style={{ marginLeft: 2 }} />
+                        <Image source={{ uri: poster }} style={styles.heroPoster} />
+                        <LinearGradient
+                          colors={['transparent', 'rgba(10,10,14,0.85)']}
+                          style={StyleSheet.absoluteFillObject}
+                        />
+                        <TouchableOpacity
+                          style={styles.playFab}
+                          onPress={() => navigation.navigate('PlayerScreen', { media: item })}
+                        >
+                          <Ionicons name="play" size={20} color="#FFF" style={{ marginLeft: 2 }} />
+                        </TouchableOpacity>
                       </TouchableOpacity>
-                    </TouchableOpacity>
+                    </Animated.View>
                   );
-                })}
-              </ScrollView>
+                }}
+              />
 
-              {/* Active Movie Metadata */}
+              {/* Active Movie Info */}
               {activeItem && (
                 <View style={styles.activeMeta}>
                   <Text style={styles.metaYear}>
                     {activeItem.release_date?.split('-')[0] ||
                       activeItem.first_air_date?.split('-')[0] ||
-                      '2025'}
+                      '2026'}
                   </Text>
                   <Text style={styles.metaTitle} numberOfLines={1}>
                     {activeItem.title || activeItem.name}
@@ -163,14 +217,14 @@ export default function HomeScreen({ navigation }) {
                     <View style={[styles.badge, styles.ratingBadge]}>
                       <Ionicons name="star" size={12} color="#FFB800" />
                       <Text style={[styles.badgeText, { color: '#FFB800', marginLeft: 4 }]}>
-                        {activeItem.vote_average ? activeItem.vote_average.toFixed(1) : '7.9'}
+                        {activeItem.vote_average ? activeItem.vote_average.toFixed(1) : '7.8'}
                       </Text>
                     </View>
                   </View>
                 </View>
               )}
 
-              {/* Dots */}
+              {/* Pagination Dots */}
               <View style={styles.dotRow}>
                 {trending.slice(0, 5).map((_, i) => (
                   <View
@@ -185,13 +239,16 @@ export default function HomeScreen({ navigation }) {
             </View>
           ) : null}
 
-          {/* Continue Watching Section */}
+          {/* Continue Watching */}
           {history.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>
                   <Text style={{ color: '#FF334B' }}>▸▸ </Text>Continue Watching
                 </Text>
+                <TouchableOpacity>
+                  <Text style={styles.seeAllText}>See all</Text>
+                </TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfRow}>
                 {history.map((item) => (
@@ -213,21 +270,56 @@ export default function HomeScreen({ navigation }) {
             </View>
           )}
 
-          {/* Trending Row Shelf */}
-          {trending.length > 0 && (
+          {/* Top Airing Anime Shelf */}
+          {animeList.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>
-                  <Ionicons name="flame" size={18} color="#FF334B" /> Trending Now
+                  <Ionicons name="sparkles" size={17} color="#FF334B" /> Top Airing Anime
                 </Text>
                 <TouchableOpacity>
                   <Text style={styles.seeAllText}>See all</Text>
                 </TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfRow}>
-                {trending.map((item) => (
+                {animeList.map((anime, idx) => {
+                  const poster =
+                    anime.images?.jpg?.large_image_url ||
+                    anime.images?.jpg?.image_url ||
+                    (anime.poster_path ? `${IMAGE_URL}${anime.poster_path}` : '');
+
+                  return (
+                    <TouchableOpacity
+                      key={anime.mal_id || anime.id || idx}
+                      style={styles.posterCard}
+                      onPress={() => navigation.navigate('DetailsScreen', { media: anime })}
+                    >
+                      <Image source={{ uri: poster }} style={styles.posterThumb} />
+                      <Text style={styles.posterTitle} numberOfLines={1}>
+                        {anime.title || anime.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Trending Movies Shelf */}
+          {trending.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="flame" size={18} color="#FF334B" /> Trending Movies
+                </Text>
+                <TouchableOpacity>
+                  <Text style={styles.seeAllText}>See all</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfRow}>
+                {trending.map((item, idx) => (
                   <TouchableOpacity
-                    key={item.id}
+                    key={item.id || idx}
                     style={styles.posterCard}
                     onPress={() => navigation.navigate('DetailsScreen', { media: item })}
                   >
@@ -243,6 +335,7 @@ export default function HomeScreen({ navigation }) {
               </ScrollView>
             </View>
           )}
+
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -251,7 +344,7 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0E' },
-  carouselContainer: { marginTop: 4, alignItems: 'center' },
+  carouselWrapper: { marginTop: 4, alignItems: 'center' },
   heroCard: {
     width: CARD_WIDTH,
     height: CARD_WIDTH * 1.38,
@@ -271,6 +364,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF334B',
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#FF334B',
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
   },
   activeMeta: { alignItems: 'center', marginTop: 14, paddingHorizontal: 20 },
   metaYear: { color: '#7E7E8A', fontSize: 12, letterSpacing: 1 },
