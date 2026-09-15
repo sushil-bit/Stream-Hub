@@ -1,13 +1,14 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
-import FloatingTabBar from './src/components/Navigation/FloatingTabBar';
-import HomeScreen from './src/screens/HomeScreen';
-import DetailsScreen from './src/screens/DetailsScreen';
-import PlayerScreen from './src/screens/PlayerScreen';
-import SearchScreen from './src/screens/SearchScreen';
+import FloatingTabBar from "./src/components/Navigation/FloatingTabBar";
+import HomeScreen from "./src/screens/HomeScreen";
+import DetailsScreen from "./src/screens/DetailsScreen";
+import PlayerScreen from "./src/screens/PlayerScreen";
+import SearchScreen from "./src/screens/SearchScreen";
+import WatchlistScreen from "./src/screens/WatchlistScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -20,7 +21,7 @@ function BottomTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={SearchScreen} />
-      <Tab.Screen name="Details" component={DetailsScreen} />
+      <Tab.Screen name="Details" component={WatchlistScreen} />
     </Tab.Navigator>
   );
 }
