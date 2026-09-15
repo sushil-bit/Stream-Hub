@@ -17,10 +17,10 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
-  { id: "vidsrc_me", name: "Server 1 (VidSrc ME - Stable)" },
-  { id: "vidsrc_in", name: "Server 2 (VidSrc IN)" },
-  { id: "superembed", name: "Server 3 (Multi-Stream)" },
-  { id: "vidsrc_net", name: "Server 4 (VIP Net)" },
+  { id: "vidsrc_me", name: "Server 1 (VidSrc)" },
+  { id: "autoembed", name: "Server 2 (AutoEmbed)" },
+  { id: "smashy", name: "Server 3 (Smashy)" },
+  { id: "vidsrc_sbs", name: "Server 4 (VidSrc SBS)" },
 ];
 
 export default function PlayerScreen({ route, navigation }) {
@@ -40,18 +40,18 @@ export default function PlayerScreen({ route, navigation }) {
         return isTv
           ? "https://vidsrc.me/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
           : "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
-      case "vidsrc_in":
+      case "autoembed":
         return isTv
-          ? "https://vidsrc.in/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
-          : "https://vidsrc.in/embed/movie?tmdb=" + tmdbId;
-      case "superembed":
+          ? "https://player.autoembed.cc/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://player.autoembed.cc/embed/movie/" + tmdbId;
+      case "smashy":
         return isTv
-          ? "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1&s=" + season + "&e=" + episode
-          : "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
-      case "vidsrc_net":
+          ? "https://player.smashy.stream/tv/" + tmdbId + "?s=" + season + "&e=" + episode
+          : "https://player.smashy.stream/movie/" + tmdbId;
+      case "vidsrc_sbs":
         return isTv
-          ? "https://vidsrc.net/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
-          : "https://vidsrc.net/embed/movie?tmdb=" + tmdbId;
+          ? "https://vidsrc.sbs/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://vidsrc.sbs/embed/movie/" + tmdbId;
       default:
         return "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
     }
@@ -61,6 +61,7 @@ export default function PlayerScreen({ route, navigation }) {
     <View style={styles.container}>
       <StatusBar hidden />
 
+      {/* Embedded Stream Player */}
       <View style={styles.playerContainer}>
         <WebView
           key={activeServer + "-" + season + "-" + episode}
@@ -80,18 +81,13 @@ export default function PlayerScreen({ route, navigation }) {
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
-          onShouldStartLoadWithRequest={(req) => {
-            const url = req.url.toLowerCase();
-            return (
-              url.includes("vidsrc") ||
-              url.includes("multiembed") ||
-              url.includes("cloudflare") ||
-              url.includes("stream") ||
-              url.includes("m3u8") ||
-              url.startsWith("about:") ||
-              url.startsWith("data:")
-            );
-          }}
+          renderError={() => (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={36} color="#FF334B" />
+              <Text style={styles.errorText}>Stream blocked or unavailable on this server.</Text>
+              <Text style={styles.errorSubtext}>Please switch to another server below.</Text>
+            </View>
+          )}
           onLoadStart={() => setPlayerLoading(true)}
           onLoadEnd={() => setPlayerLoading(false)}
           onError={() => setPlayerLoading(false)}
@@ -107,6 +103,7 @@ export default function PlayerScreen({ route, navigation }) {
 
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20 }}>
+          {/* Header */}
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={24} color="#FFF" />
@@ -121,6 +118,7 @@ export default function PlayerScreen({ route, navigation }) {
             </View>
           </View>
 
+          {/* Working Servers */}
           <Text style={styles.sectionHeading}>Streaming Server</Text>
           <View style={styles.serverRow}>
             {SERVERS.map((srv) => {
@@ -142,6 +140,7 @@ export default function PlayerScreen({ route, navigation }) {
             })}
           </View>
 
+          {/* Episode Buttons */}
           {isTv && (
             <View style={styles.episodeSection}>
               <Text style={styles.sectionHeading}>Episodes</Text>
@@ -187,6 +186,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  errorBox: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0A0A0E",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  errorText: { color: "#FFF", fontSize: 14, fontWeight: "700", marginTop: 8, textAlign: "center" },
+  errorSubtext: { color: "#7E7E8E", fontSize: 12, marginTop: 4, textAlign: "center" },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   backBtn: {
     width: 40,
