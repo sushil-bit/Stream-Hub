@@ -17,17 +17,17 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
-  { id: "vidsrc_sbs", name: "Server 1 (VidSrc Pro)" },
-  { id: "vidsrc_me", name: "Server 2 (VidSrc Stream)" },
-  { id: "superembed", name: "Server 3 (MultiEmbed)" },
-  { id: "twoembed", name: "Server 4 (2Embed Direct)" },
+  { id: "vidsrc_pro", name: "Server 1 (Vidsrc Pro)" },
+  { id: "smashy", name: "Server 2 (Smashy)" },
+  { id: "vidsrc_me", name: "Server 3 (Vidsrc ME)" },
+  { id: "autoembed", name: "Server 4 (AutoEmbed)" },
 ];
 
 export default function PlayerScreen({ route, navigation }) {
   const media = route?.params?.media || {};
   const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
-  const [activeServer, setActiveServer] = useState("vidsrc_sbs");
+  const [activeServer, setActiveServer] = useState("vidsrc_pro");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [playerLoading, setPlayerLoading] = useState(true);
@@ -36,52 +36,25 @@ export default function PlayerScreen({ route, navigation }) {
 
   const getEmbedUrl = () => {
     switch (activeServer) {
-      case "vidsrc_sbs":
+      case "vidsrc_pro":
         return isTv
-          ? "https://vidsrc.sbs/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://vidsrc.sbs/embed/movie/" + tmdbId;
+          ? "https://vidsrc.pro/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://vidsrc.pro/embed/movie/" + tmdbId;
+      case "smashy":
+        return isTv
+          ? "https://player.smashy.stream/tv/" + tmdbId + "?s=" + season + "&e=" + episode
+          : "https://player.smashy.stream/movie/" + tmdbId;
       case "vidsrc_me":
         return isTv
           ? "https://vidsrc.me/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
           : "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
-      case "superembed":
+      case "autoembed":
         return isTv
-          ? "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1&s=" + season + "&e=" + episode
-          : "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
-      case "twoembed":
-        return isTv
-          ? "https://www.2embed.cc/embedtv/" + tmdbId + "&s=" + season + "&e=" + episode
-          : "https://www.2embed.cc/embed/" + tmdbId;
+          ? "https://player.autoembed.cc/embed/tv/" + tmdbId + "/" + season + "/" + episode
+          : "https://player.autoembed.cc/embed/movie/" + tmdbId;
       default:
-        return "https://vidsrc.sbs/embed/movie/" + tmdbId;
+        return "https://vidsrc.pro/embed/movie/" + tmdbId;
     }
-  };
-
-  // Embed inside clean HTML iframe WITHOUT the sandbox attribute
-  const getHtmlContent = () => {
-    const streamUrl = getEmbedUrl();
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body, html { width: 100%; height: 100%; background: #000; overflow: hidden; }
-            iframe { width: 100%; height: 100%; border: none; }
-          </style>
-        </head>
-        <body>
-          <iframe 
-            src="${streamUrl}" 
-            allowfullscreen="true" 
-            webkitallowfullscreen="true" 
-            mozallowfullscreen="true" 
-            scrolling="no"
-          ></iframe>
-        </body>
-      </html>
-    `;
   };
 
   return (
@@ -91,36 +64,38 @@ export default function PlayerScreen({ route, navigation }) {
       <View style={styles.playerContainer}>
         <WebView
           key={activeServer + "-" + season + "-" + episode}
-          originWhitelist={["*"]}
-          source={{ html: getHtmlContent() }}
-          userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+          source={{
+            uri: getEmbedUrl(),
+            headers: {
+              Referer: "https://vidsrc.pro/",
+            },
+          }}
+          userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
           allowsFullscreenVideo
-          javaScriptEnabled
-          domStorageEnabled
-          thirdPartyCookiesEnabled
-          sharedCookiesEnabled
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          thirdPartyCookiesEnabled={true}
+          sharedCookiesEnabled={true}
           mixedContentMode="always"
-          allowsInlineMediaPlayback
+          allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
           onShouldStartLoadWithRequest={(req) => {
             const url = req.url.toLowerCase();
-            // Block external ad popups and non-video redirects
-            if (
-              url.startsWith("data:") ||
-              url.startsWith("about:") ||
+            return (
               url.includes("vidsrc") ||
-              url.includes("multiembed") ||
-              url.includes("2embed") ||
+              url.includes("smashy") ||
+              url.includes("autoembed") ||
+              url.includes("cloudflare") ||
               url.includes("stream") ||
-              url.includes("m3u8")
-            ) {
-              return true;
-            }
-            return false;
+              url.includes("m3u8") ||
+              url.startsWith("about:") ||
+              url.startsWith("data:")
+            );
           }}
           onLoadStart={() => setPlayerLoading(true)}
           onLoadEnd={() => setPlayerLoading(false)}
+          onError={() => setPlayerLoading(false)}
           style={styles.webview}
         />
 
