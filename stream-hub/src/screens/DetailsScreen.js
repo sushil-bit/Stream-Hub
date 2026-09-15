@@ -8,20 +8,27 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { IMAGE_BASE_URL } from "../services/api";
+import { IMAGE_BASE_URL, fetchTvDetails, fetchSeasonDetails } from "../services/api";
 import { getWatchlist, toggleWatchlist } from "../services/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const BACKDROP_HEIGHT = SCREEN_WIDTH * 1.15;
+const BACKDROP_HEIGHT = SCREEN_WIDTH * 1.1;
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
 export default function DetailsScreen({ route, navigation }) {
   const media = route?.params?.media || {};
+  const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
+
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [seasons, setSeasons] = useState([]);
+  const [selectedSeason, setSelectedSeason] = useState(1);
+  const [episodes, setEpisodes] = useState([]);
+  const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
   const title = media.title || media.name || "Untitled Media";
   const releaseYear =
@@ -47,7 +54,47 @@ export default function DetailsScreen({ route, navigation }) {
 
   useEffect(() => {
     checkBookmark();
+    if (isTv && media.id) {
+      loadTvMetadata();
+    }
   }, [media.id, media.mal_id]);
+
+  const loadTvMetadata = async () => {
+    try {
+      const tvInfo = await fetchTvDetails(media.id);
+      if (tvInfo?.seasons?.length) {
+        // Filter out specials (season 0) if desired
+        const validSeasons = tvInfo.seasons.filter((s) => s.season_number > 0);
+        setSeasons(validSeasons.length ? validSeasons : tvInfo.seasons);
+        const firstSeason = validSeasons[0]?.season_number || 1;
+        setSelectedSeason(firstSeason);
+        loadEpisodes(firstSeason);
+      } else {
+        // Fallback default season
+        loadEpisodes(1);
+      }
+    } catch (err) {
+      console.warn("Failed TV meta load:", err);
+      loadEpisodes(1);
+    }
+  };
+
+  const loadEpisodes = async (seasonNum) => {
+    setLoadingEpisodes(true);
+    try {
+      const eps = await fetchSeasonDetails(media.id, seasonNum);
+      setEpisodes(eps || []);
+    } catch (err) {
+      console.warn("Error fetching episodes:", err);
+    } finally {
+      setLoadingEpisodes(false);
+    }
+  };
+
+  const handleSeasonSelect = (seasonNum) => {
+    setSelectedSeason(seasonNum);
+    loadEpisodes(seasonNum);
+  };
 
   const checkBookmark = async () => {
     try {
@@ -74,21 +121,30 @@ export default function DetailsScreen({ route, navigation }) {
     }
   };
 
+  const launchPlayer = (seasonNum = 1, episodeNum = 1) => {
+    navigation.navigate("PlayerScreen", {
+      media: {
+        ...media,
+        selectedSeason: seasonNum,
+        selectedEpisode: episodeNum,
+      },
+    });
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Backdrop Image & Gradient */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+        {/* Backdrop Image */}
         <View style={styles.heroWrapper}>
           <Image source={{ uri: backdropUri }} style={styles.backdropImage} />
           <LinearGradient
-            colors={["rgba(10,10,14,0.3)", "rgba(10,10,14,0.7)", "#0A0A0E"]}
+            colors={["rgba(10,10,14,0.2)", "rgba(10,10,14,0.75)", "#0A0A0E"]}
             locations={[0.2, 0.7, 1]}
             style={StyleSheet.absoluteFillObject}
           />
 
-          {/* Top Bar Controls */}
           <SafeAreaView style={styles.headerBar}>
             <TouchableOpacity style={styles.iconCircle} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={22} color="#FFF" />
@@ -103,7 +159,6 @@ export default function DetailsScreen({ route, navigation }) {
           </SafeAreaView>
         </View>
 
-        {/* Content Section */}
         <View style={styles.contentContainer}>
           <Text style={styles.mediaTitle}>{title}</Text>
 
@@ -116,11 +171,11 @@ export default function DetailsScreen({ route, navigation }) {
               <Text style={styles.pillText}>{releaseYear}</Text>
             </View>
             <View style={styles.pillBadge}>
-              <Text style={styles.pillText}>4K ULTRA HD</Text>
+              <Text style={styles.pillText}>HD</Text>
             </View>
             <View style={styles.pillBadge}>
               <Text style={styles.pillText}>
-                {media.isAnime ? "ANIME" : media.media_type === "tv" ? "TV SHOW" : "MOVIE"}
+                {media.isAnime ? "ANIME" : isTv ? "SERIES" : "MOVIE"}
               </Text>
             </View>
           </View>
@@ -130,7 +185,7 @@ export default function DetailsScreen({ route, navigation }) {
             <TouchableOpacity
               style={styles.playButton}
               activeOpacity={0.85}
-              onPress={() => navigation.navigate("PlayerScreen", { media })}
+              onPress={() => launchPlayer(selectedSeason, 1)}
             >
               <LinearGradient
                 colors={["#FF4D64", "#D81B34"]}
@@ -138,8 +193,10 @@ export default function DetailsScreen({ route, navigation }) {
                 end={{ x: 1, y: 0 }}
                 style={styles.playGradient}
               >
-                <Ionicons name="play" size={22} color="#FFF" style={{ marginRight: 6 }} />
-                <Text style={styles.playText}>Play Now</Text>
+                <Ionicons name="play" size={20} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={styles.playText}>
+                  {isTv ? "Watch S" + selectedSeason + " E1" : "Play Now"}
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -157,6 +214,91 @@ export default function DetailsScreen({ route, navigation }) {
             <Text style={styles.sectionHeader}>Storyline</Text>
             <Text style={styles.overviewText}>{overview}</Text>
           </View>
+
+          {/* Seasons & Episodes Section (Only rendered for TV Shows & Anime) */}
+          {isTv && (
+            <View style={styles.episodesWrapper}>
+              <View style={styles.seasonHeaderRow}>
+                <Text style={styles.sectionHeader}>Seasons & Episodes</Text>
+              </View>
+
+              {/* Season Selection Pills */}
+              {seasons.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.seasonsScroll}
+                >
+                  {seasons.map((s) => {
+                    const isSelected = selectedSeason === s.season_number;
+                    return (
+                      <TouchableOpacity
+                        key={"season-" + s.season_number}
+                        style={[styles.seasonChip, isSelected && styles.seasonChipActive]}
+                        onPress={() => handleSeasonSelect(s.season_number)}
+                      >
+                        <Text style={[styles.seasonChipText, isSelected && styles.seasonChipTextActive]}>
+                          {s.name || "Season " + s.season_number}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+
+              {/* Episode Cards */}
+              {loadingEpisodes ? (
+                <View style={styles.episodesLoader}>
+                  <ActivityIndicator size="small" color="#FF334B" />
+                </View>
+              ) : episodes.length > 0 ? (
+                <View style={styles.episodeList}>
+                  {episodes.map((ep) => {
+                    const thumb = ep.still_path
+                      ? IMAGE_URL + ep.still_path
+                      : backdropUri;
+                    return (
+                      <TouchableOpacity
+                        key={"ep-" + ep.id}
+                        style={styles.episodeCard}
+                        activeOpacity={0.8}
+                        onPress={() => launchPlayer(selectedSeason, ep.episode_number)}
+                      >
+                        <View style={styles.thumbWrapper}>
+                          <Image source={{ uri: thumb }} style={styles.thumbImg} />
+                          <View style={styles.playIconMini}>
+                            <Ionicons name="play" size={14} color="#FFF" />
+                          </View>
+                        </View>
+                        <View style={styles.epDetails}>
+                          <Text style={styles.epNumber}>Episode {ep.episode_number}</Text>
+                          <Text style={styles.epTitle} numberOfLines={1}>
+                            {ep.name || "Episode " + ep.episode_number}
+                          </Text>
+                          <Text style={styles.epOverview} numberOfLines={2}>
+                            {ep.overview || "No overview available for this episode."}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.fallbackEpGrid}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                    <TouchableOpacity
+                      key={"fallback-" + num}
+                      style={styles.fallbackEpButton}
+                      onPress={() => launchPlayer(selectedSeason, num)}
+                    >
+                      <Ionicons name="play-circle-outline" size={16} color="#FF334B" />
+                      <Text style={styles.fallbackEpText}>Episode {num}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -188,7 +330,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
   },
   contentContainer: { paddingHorizontal: 20, marginTop: -32 },
-  mediaTitle: { color: "#FFFFFF", fontSize: 26, fontWeight: "800", letterSpacing: 0.3 },
+  mediaTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "800", letterSpacing: 0.3 },
   tagsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" },
   ratingBadge: {
     flexDirection: "row",
@@ -210,21 +352,71 @@ const styles = StyleSheet.create({
     borderColor: "#232332",
   },
   pillText: { color: "#8E8E9E", fontSize: 11, fontWeight: "700" },
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 22 },
-  playButton: { flex: 1, height: 52, borderRadius: 26, overflow: "hidden" },
+  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 },
+  playButton: { flex: 1, height: 50, borderRadius: 25, overflow: "hidden" },
   playGradient: { flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center" },
-  playText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
+  playText: { color: "#FFF", fontSize: 15, fontWeight: "700" },
   bookmarkBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "#161622",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#242434",
   },
-  synopsisSection: { marginTop: 26 },
+  synopsisSection: { marginTop: 24 },
   sectionHeader: { color: "#FFF", fontSize: 17, fontWeight: "700", marginBottom: 10 },
   overviewText: { color: "#9E9EB0", fontSize: 14, lineHeight: 22 },
+  episodesWrapper: { marginTop: 28 },
+  seasonHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  seasonsScroll: { gap: 10, paddingVertical: 10 },
+  seasonChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: "#161622",
+    borderWidth: 1,
+    borderColor: "#242434",
+  },
+  seasonChipActive: { backgroundColor: "#FF334B", borderColor: "#FF334B" },
+  seasonChipText: { color: "#8E8E9E", fontSize: 13, fontWeight: "600" },
+  seasonChipTextActive: { color: "#FFF" },
+  episodesLoader: { paddingVertical: 30, alignItems: "center" },
+  episodeList: { gap: 14, marginTop: 10 },
+  episodeCard: {
+    flexDirection: "row",
+    backgroundColor: "#14141E",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#22222E",
+  },
+  thumbWrapper: { width: 110, height: 68, borderRadius: 8, overflow: "hidden", backgroundColor: "#0A0A0E" },
+  thumbImg: { width: "100%", height: "100%", resizeMode: "cover" },
+  playIconMini: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  epDetails: { flex: 1, marginLeft: 12, justifyContent: "center" },
+  epNumber: { color: "#FF334B", fontSize: 11, fontWeight: "700" },
+  epTitle: { color: "#FFF", fontSize: 14, fontWeight: "700", marginTop: 2 },
+  epOverview: { color: "#7E7E8E", fontSize: 11, lineHeight: 16, marginTop: 4 },
+  fallbackEpGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  fallbackEpButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#161622",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#242434",
+    width: "48%",
+  },
+  fallbackEpText: { color: "#FFF", fontSize: 12, fontWeight: "600" },
 });
