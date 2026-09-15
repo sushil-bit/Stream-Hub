@@ -46,7 +46,7 @@ export const searchMulti = async (query) => {
   if (!query || !query.trim()) return [];
   try {
     const res = await fetch(
-      `${BASE_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query.trim())}&include_adult=false`
+      `${BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query.trim())}&include_adult=false`
     );
     const data = await res.json();
     // Filter out people or items without posters
@@ -62,7 +62,7 @@ export const searchMulti = async (query) => {
 export const fetchSeasonDetails = async (tvId, seasonNum = 1) => {
   try {
     const res = await fetch(
-      `${BASE_URL}/tv/${tvId}/season/${seasonNum}?api_key=${API_KEY}&language=en-US`
+      `${BASE_URL}/tv/${tvId}/season/${seasonNum}?api_key=${TMDB_API_KEY}&language=en-US`
     );
     const data = await res.json();
     return data.episodes || [];
@@ -75,7 +75,7 @@ export const fetchSeasonDetails = async (tvId, seasonNum = 1) => {
 export const fetchTvDetails = async (tvId) => {
   try {
     const res = await fetch(
-      `${BASE_URL}/tv/${tvId}?api_key=${API_KEY}&language=en-US`
+      `${BASE_URL}/tv/${tvId}?api_key=${TMDB_API_KEY}&language=en-US`
     );
     return await res.json();
   } catch (err) {
