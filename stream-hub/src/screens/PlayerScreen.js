@@ -17,17 +17,17 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLAYER_HEIGHT = (SCREEN_WIDTH * 9) / 16;
 
 const SERVERS = [
-  { id: "vidsrc_pro", name: "Server 1 (Vidsrc Pro)" },
-  { id: "smashy", name: "Server 2 (Smashy)" },
-  { id: "vidsrc_me", name: "Server 3 (Vidsrc ME)" },
-  { id: "autoembed", name: "Server 4 (AutoEmbed)" },
+  { id: "vidsrc_me", name: "Server 1 (VidSrc ME - Stable)" },
+  { id: "vidsrc_in", name: "Server 2 (VidSrc IN)" },
+  { id: "superembed", name: "Server 3 (Multi-Stream)" },
+  { id: "vidsrc_net", name: "Server 4 (VIP Net)" },
 ];
 
 export default function PlayerScreen({ route, navigation }) {
   const media = route?.params?.media || {};
   const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
-  const [activeServer, setActiveServer] = useState("vidsrc_pro");
+  const [activeServer, setActiveServer] = useState("vidsrc_me");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [playerLoading, setPlayerLoading] = useState(true);
@@ -36,24 +36,24 @@ export default function PlayerScreen({ route, navigation }) {
 
   const getEmbedUrl = () => {
     switch (activeServer) {
-      case "vidsrc_pro":
-        return isTv
-          ? "https://vidsrc.pro/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://vidsrc.pro/embed/movie/" + tmdbId;
-      case "smashy":
-        return isTv
-          ? "https://player.smashy.stream/tv/" + tmdbId + "?s=" + season + "&e=" + episode
-          : "https://player.smashy.stream/movie/" + tmdbId;
       case "vidsrc_me":
         return isTv
           ? "https://vidsrc.me/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
           : "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
-      case "autoembed":
+      case "vidsrc_in":
         return isTv
-          ? "https://player.autoembed.cc/embed/tv/" + tmdbId + "/" + season + "/" + episode
-          : "https://player.autoembed.cc/embed/movie/" + tmdbId;
+          ? "https://vidsrc.in/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
+          : "https://vidsrc.in/embed/movie?tmdb=" + tmdbId;
+      case "superembed":
+        return isTv
+          ? "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1&s=" + season + "&e=" + episode
+          : "https://multiembed.mov/?video_id=" + tmdbId + "&tmdb=1";
+      case "vidsrc_net":
+        return isTv
+          ? "https://vidsrc.net/embed/tv?tmdb=" + tmdbId + "&season=" + season + "&episode=" + episode
+          : "https://vidsrc.net/embed/movie?tmdb=" + tmdbId;
       default:
-        return "https://vidsrc.pro/embed/movie/" + tmdbId;
+        return "https://vidsrc.me/embed/movie?tmdb=" + tmdbId;
     }
   };
 
@@ -67,7 +67,7 @@ export default function PlayerScreen({ route, navigation }) {
           source={{
             uri: getEmbedUrl(),
             headers: {
-              Referer: "https://vidsrc.pro/",
+              Referer: "https://vidsrc.me/",
             },
           }}
           userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
@@ -84,8 +84,7 @@ export default function PlayerScreen({ route, navigation }) {
             const url = req.url.toLowerCase();
             return (
               url.includes("vidsrc") ||
-              url.includes("smashy") ||
-              url.includes("autoembed") ||
+              url.includes("multiembed") ||
               url.includes("cloudflare") ||
               url.includes("stream") ||
               url.includes("m3u8") ||
