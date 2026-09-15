@@ -26,6 +26,12 @@
     "splash": {
       "backgroundColor": "#0A0A0E",
       "resizeMode": "contain"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "44f5dd08-328a-4c37-9741-843321c7d0a1"
+      }
+    },
+    "owner": "sbsushil62"
   }
 }
