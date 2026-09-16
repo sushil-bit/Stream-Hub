@@ -1,3 +1,5 @@
+import DownloadButton from '../components/common/DownloadButton.jsx';
+import { getDownloads } from '../services/downloadManager';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -94,6 +96,20 @@ export default function DetailsScreen({ route, navigation }) {
   const [seasonLayoutMode, setSeasonLayoutMode] = useState('dropdown'); // 'dropdown' | 'slideable'
   const [seasonModalVisible, setSeasonModalVisible] = useState(false);
   const [selectedActor, setSelectedActor] = useState(null);
+  const [downloadMap, setDownloadMap] = useState({});
+
+  useEffect(() => {
+    getDownloads().then((map) => setDownloadMap(map || {}));
+  }, []);
+
+  const handleDownloadStatus = (key, status) => {
+    setDownloadMap((prev) => {
+      const next = { ...prev };
+      if (status) next[key] = true;
+      else delete next[key];
+      return next;
+    });
+  };
   const [actorDetails, setActorDetails] = useState(null);
   const [loadingActor, setLoadingActor] = useState(false);
 
@@ -495,6 +511,9 @@ export default function DetailsScreen({ route, navigation }) {
                   >
                     <Ionicons name="play" size={13} color="#E50914" />
                     <Text style={styles.episodeGridCardText}>Ep {epNum}</Text>
+                    {downloadMap[`${media?.id}_s${selectedSeason}_e${epNum}`] && (
+                      <Ionicons name="checkmark-circle" size={12} color="#46D369" style={{ marginLeft: 3 }} />
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -526,6 +545,15 @@ export default function DetailsScreen({ route, navigation }) {
                       ) : null}
                     </View>
                   </TouchableOpacity>
+                  <DownloadButton
+                    itemKey={`${media?.id}_s${selectedSeason}_e${epNum}`}
+                    title={`${media?.name || media?.title} - S${selectedSeason}E${epNum}`}
+                    mediaType="tv"
+                    season={selectedSeason}
+                    episode={epNum}
+                    isDownloaded={!!downloadMap[`${media?.id}_s${selectedSeason}_e${epNum}`]}
+                    onStatusChange={handleDownloadStatus}
+                  />
                 );
               })}
             </View>
