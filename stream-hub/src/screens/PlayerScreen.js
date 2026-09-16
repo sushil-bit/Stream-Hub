@@ -217,8 +217,15 @@ export default function PlayerScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0A0A0E" },
-  playerContainer: { width: SCREEN_WIDTH, height: PLAYER_HEIGHT, backgroundColor: "#000" },
-  webview: { flex: 1, backgroundColor: "#000" },
+  playerContainer: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#000",
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
   playerLoader: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#0A0A0E",
