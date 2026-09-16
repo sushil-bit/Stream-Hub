@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import DownloadsScreen from './src/screens/DownloadsScreen';
 import "react-native-gesture-handler";
 
 import React from "react";
@@ -24,6 +26,16 @@ function BottomTabs() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={SearchScreen} />
       <Tab.Screen name="Details" component={WatchlistScreen} />
+          <Tab.Screen 
+        name="Downloads" 
+        component={DownloadsScreen} 
+        options={{
+          tabBarLabel: 'Downloads',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="download-outline" size={size || 22} color={color} />
+          ),
+        }} 
+      />
     </Tab.Navigator>
   );
 }

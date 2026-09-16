@@ -102,7 +102,7 @@ export default function DetailsScreen({ route, navigation }) {
 
   useEffect(() => {
     if (media?.id) {
-      const isSeries = !!(media.first_air_date || media.name || media.number_of_seasons || route?.params?.type === 'tv');
+      const isSeries = !!(media?.first_air_date || media?.name || media?.number_of_seasons || route?.params?.mediaType === 'tv' || route?.params?.type === 'tv');
       const mediaType = isSeries ? 'tv' : 'movie';
       fetchMediaDetailsExtra(mediaType, media.id);
     }
