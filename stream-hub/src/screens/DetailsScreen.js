@@ -124,6 +124,10 @@ export default function DetailsScreen({ route, navigation }) {
 
 
   useEffect(() => {
+    if (media?.id) {
+      const type = media.media_type || (media.title ? 'movie' : 'tv');
+      fetchMediaDetailsExtra(type, media.id);
+    }
     if (isTv && media?.id) {
       const fetchSeasonEpisodes = async () => {
         setLoadingEpisodes(true);
