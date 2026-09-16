@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import AuthScreen from "./src/screens/AuthScreen";
 import { Ionicons } from '@expo/vector-icons';
 import DownloadsScreen from './src/screens/DownloadsScreen';
