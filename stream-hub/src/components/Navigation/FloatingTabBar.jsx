@@ -39,6 +39,24 @@ export default function FloatingTabBar({ state, navigation }) {
           />
           <Text style={[styles.tabLabel, state.index === 2 && styles.activeLabel]}>List</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => navigation.navigate("Downloads")}
+        >
+          <Ionicons
+            name={state.index === 3 ? "download" : "download-outline"}
+            size={22}
+            color={state.index === 3 ? "#FF334B" : "#7E7E8A"}
+          />
+          <Text
+            style={[
+              styles.tabLabel,
+              state.index === 3 && styles.activeLabel,
+            ]}
+          >
+            Downloads
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
