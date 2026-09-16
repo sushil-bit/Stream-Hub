@@ -1,3 +1,4 @@
+import MeScreen from "./screens/MeScreen";
 const fs = require('fs');
 const targetFile = fs.existsSync('src/navigation/TabNavigator.js') 
   ? 'src/navigation/TabNavigator.js' 
@@ -24,7 +25,8 @@ if (code.includes('<Tab.Navigator') && !code.includes('name="Downloads"')) {
 
   code = code.replace('</Tab.Navigator>', tabScreenEntry);
 } else if (code.includes('<Stack.Navigator') && !code.includes('name="Downloads"')) {
-  const stackScreenEntry = `  <Stack.Screen name="Downloads" component={DownloadsScreen} />\n    </Stack.Navigator>`;
+  const stackScreenEntry = `  <Stack.Screen name="Downloads" component={DownloadsScreen} />
+        <Tab.Screen name="Me" component={MeScreen} />\n    </Stack.Navigator>`;
   code = code.replace('</Stack.Navigator>', stackScreenEntry);
 }
 
