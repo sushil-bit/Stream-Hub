@@ -83,3 +83,29 @@ export const fetchTvDetails = async (tvId) => {
     return null;
   }
 };
+
+export const fetchMediaDetailsExtra = async (type, id) => {
+  try {
+    const TMDB_API_KEY = "2c46288716a18f8861fbac2907798388";
+    const [recsRes, credsRes] = await Promise.allSettled([
+      fetch(`https://api.themoviedb.org/3/${type}/${id}/recommendations?api_key=${TMDB_API_KEY}&page=1`),
+      fetch(`https://api.themoviedb.org/3/${type}/${id}/credits?api_key=${TMDB_API_KEY}`),
+    ]);
+
+    const recommendations = recsRes.status === 'fulfilled'
+      ? (await recsRes.value.json()).results || []
+      : [];
+
+    const credits = credsRes.status === 'fulfilled'
+      ? await credsRes.value.json()
+      : { cast: [], crew: [] };
+
+    const directors = credits.crew ? credits.crew.filter((c) => c.job === 'Director') : [];
+    const topCast = credits.cast ? credits.cast.slice(0, 15) : [];
+
+    return { recommendations, topCast, directors };
+  } catch (err) {
+    console.warn("fetchMediaDetailsExtra error:", err);
+    return { recommendations: [], topCast: [], directors: [] };
+  }
+};
