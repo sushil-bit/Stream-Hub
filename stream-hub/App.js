@@ -1,3 +1,4 @@
+import SettingsScreen from "./src/screens/SettingsScreen";
 import MeScreen from "./src/screens/MeScreen";
 import React, { useState, useEffect } from "react";
 import { View, ActivityIndicator } from "react-native";
@@ -80,6 +81,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Main" component={BottomTabs} />
         <Stack.Screen name="PlayerScreen" component={PlayerScreen} />
         <Stack.Screen name="DetailsScreen" component={DetailsScreen} />

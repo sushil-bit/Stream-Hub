@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import CoffeeSupportModal from "../components/CoffeeSupportModal";
 
 export default function MeScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
+  const [showCoffeeModal, setShowCoffeeModal] = useState(false);
   const [counts, setCounts] = useState({
     watchlist: 0,
     liked: 0,
@@ -27,21 +28,16 @@ export default function MeScreen({ navigation }) {
         if (session) setProfile(JSON.parse(session));
 
         const watchlistData = await AsyncStorage.getItem("@streamhub_watchlist");
-        const parsedWatchlist = watchlistData ? JSON.parse(watchlistData) : [];
-
         const likedData = await AsyncStorage.getItem("@streamhub_liked");
-        const parsedLiked = likedData ? JSON.parse(likedData) : [];
-
         const commentsData = await AsyncStorage.getItem("@streamhub_comments");
-        const parsedComments = commentsData ? JSON.parse(commentsData) : [];
 
         setCounts({
-          watchlist: Array.isArray(parsedWatchlist) ? parsedWatchlist.length : 0,
-          liked: Array.isArray(parsedLiked) ? parsedLiked.length : 0,
-          comments: Array.isArray(parsedComments) ? parsedComments.length : 0,
+          watchlist: watchlistData ? JSON.parse(watchlistData).length : 0,
+          liked: likedData ? JSON.parse(likedData).length : 0,
+          comments: commentsData ? JSON.parse(commentsData).length : 0,
         });
       } catch (e) {
-        console.warn("Error loading user counts:", e);
+        console.warn("User stats retrieval error:", e);
       }
     };
 
@@ -56,33 +52,17 @@ export default function MeScreen({ navigation }) {
         style: "destructive",
         onPress: async () => {
           await AsyncStorage.removeItem("@user_session");
-          Alert.alert("Logged out", "Restart or reload the app to switch accounts.");
+          Alert.alert("Logged out", "Reload app to authenticate again.");
         },
       },
     ]);
-  };
-
-  const handleSupportCreator = () => {
-    Alert.alert(
-      "Support the Creator",
-      "Enjoying Stream-Hub? Star the repository on GitHub or contribute to the project!",
-      [
-        { text: "Later", style: "cancel" },
-        {
-          text: "Open GitHub",
-          onPress: () => {
-            Linking.openURL("https://github.com").catch(() => {});
-          },
-        },
-      ]
-    );
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.headerTitle}>Account</Text>
 
-      {/* User Profile Card */}
+      {/* User Card */}
       <View style={styles.profileCard}>
         <Image
           source={{
@@ -95,47 +75,60 @@ export default function MeScreen({ navigation }) {
         <View style={styles.profileDetails}>
           <Text style={styles.username}>{profile?.username || "Stream-Hub Member"}</Text>
           <Text style={styles.email}>{profile?.email || "streamer@streamhub.io"}</Text>
-          <View style={styles.providerBadge}>
-            <Text style={styles.providerText}>
-              {(profile?.provider || "Direct").toUpperCase()} ACCOUNT
-            </Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.providerBadge}>
+              <Text style={styles.providerText}>
+                {(profile?.provider || "DIRECT").toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.proBadge}>
+              <Ionicons name="sparkles" size={10} color="#FFB800" />
+              <Text style={styles.proText}>VIP MEMBER</Text>
+            </View>
           </View>
         </View>
       </View>
 
-      {/* Quick Activity Metrics */}
+      {/* Metric Counters */}
       <View style={styles.statsRow}>
         <TouchableOpacity
           style={styles.statBox}
           onPress={() => navigation.navigate("Details")}
         >
           <Text style={styles.statCount}>{counts.watchlist}</Text>
-          <Text style={styles.statLabel}>My List</Text>
+          <Text style={styles.statLabel}>Watchlist</Text>
         </TouchableOpacity>
-
         <View style={styles.statDivider} />
-
         <TouchableOpacity
           style={styles.statBox}
-          onPress={() => Alert.alert("My Liked", `You have liked ${counts.liked} titles.`)}
+          onPress={() => Alert.alert("Liked", `You have liked ${counts.liked} titles.`)}
         >
           <Text style={styles.statCount}>{counts.liked}</Text>
           <Text style={styles.statLabel}>Liked</Text>
         </TouchableOpacity>
-
         <View style={styles.statDivider} />
-
         <TouchableOpacity
           style={styles.statBox}
-          onPress={() => Alert.alert("My Comments", `You have posted ${counts.comments} comments.`)}
+          onPress={() => Alert.alert("Comments", `You have posted ${counts.comments} comments.`)}
         >
           <Text style={styles.statCount}>{counts.comments}</Text>
           <Text style={styles.statLabel}>Comments</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Content & Library Section */}
-      <Text style={styles.sectionHeader}>MY MEDIA</Text>
+      {/* Storage Meter */}
+      <View style={styles.storageCard}>
+        <View style={styles.storageHeader}>
+          <Text style={styles.storageTitle}>Offline Storage</Text>
+          <Text style={styles.storageValue}>1.4 GB / 64 GB</Text>
+        </View>
+        <View style={styles.storageTrack}>
+          <View style={[styles.storageBar, { width: "12%" }]} />
+        </View>
+      </View>
+
+      {/* Media Group */}
+      <Text style={styles.sectionHeader}>LIBRARY</Text>
       <View style={styles.menuGroup}>
         <TouchableOpacity
           style={styles.menuItem}
@@ -149,68 +142,44 @@ export default function MeScreen({ navigation }) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => Alert.alert("My Liked", "Your liked movies and episodes will appear here.")}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: "#FF334B1F" }]}>
-            <Ionicons name="heart" size={18} color="#FF334B" />
-          </View>
-          <Text style={styles.menuLabel}>Liked Titles</Text>
-          <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => Alert.alert("My Comments", "Your discussion history and episode notes will appear here.")}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: "#3B82F61F" }]}>
-            <Ionicons name="chatbubble-ellipses" size={18} color="#3B82F6" />
-          </View>
-          <Text style={styles.menuLabel}>My Comments & Reviews</Text>
-          <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={[styles.menuItem, styles.lastItem]}
           onPress={() => navigation.navigate("Downloads")}
         >
           <View style={[styles.iconContainer, { backgroundColor: "#10B9811F" }]}>
             <Ionicons name="download" size={18} color="#10B981" />
           </View>
-          <Text style={styles.menuLabel}>Downloads & Offline Library</Text>
+          <Text style={styles.menuLabel}>Downloads & Offline Media</Text>
           <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
         </TouchableOpacity>
       </View>
 
-      {/* Preferences & Creator Support */}
+      {/* Settings & Support */}
       <Text style={styles.sectionHeader}>PREFERENCES & SUPPORT</Text>
       <View style={styles.menuGroup}>
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() =>
-            Alert.alert("Settings", "Playback quality, subtitle styling, and stream server options.")
-          }
+          onPress={() => navigation.navigate("Settings")}
         >
           <View style={[styles.iconContainer, { backgroundColor: "#8B5CF61F" }]}>
             <Ionicons name="settings-sharp" size={18} color="#8B5CF6" />
           </View>
-          <Text style={styles.menuLabel}>App Settings</Text>
+          <Text style={styles.menuLabel}>Settings</Text>
           <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.menuItem, styles.lastItem]}
-          onPress={handleSupportCreator}
+          onPress={() => setShowCoffeeModal(true)}
         >
-          <View style={[styles.iconContainer, { backgroundColor: "#EC48991F" }]}>
-            <Ionicons name="sparkles" size={18} color="#EC4899" />
+          <View style={[styles.iconContainer, { backgroundColor: "#FFB8001F" }]}>
+            <Ionicons name="cafe" size={18} color="#FFB800" />
           </View>
-          <Text style={styles.menuLabel}>Support the Creator</Text>
-          <Ionicons name="open-outline" size={16} color="#7E7E8A" />
+          <Text style={styles.menuLabel}>Buy Me a Coffee</Text>
+          <Ionicons name="heart-outline" size={16} color="#FFB800" />
         </TouchableOpacity>
       </View>
 
-      {/* Session Management */}
+      {/* Logout */}
       <View style={[styles.menuGroup, { marginTop: 18 }]}>
         <TouchableOpacity
           style={[styles.menuItem, styles.lastItem]}
@@ -225,6 +194,12 @@ export default function MeScreen({ navigation }) {
           <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
         </TouchableOpacity>
       </View>
+
+      {/* Buy Me A Coffee Dialog */}
+      <CoffeeSupportModal
+        visible={showCoffeeModal}
+        onClose={() => setShowCoffeeModal(false)}
+      />
     </ScrollView>
   );
 }
@@ -244,7 +219,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#FFFFFF",
     marginBottom: 18,
-    letterSpacing: 0.3,
   },
   profileCard: {
     flexDirection: "row",
@@ -275,19 +249,35 @@ const styles = StyleSheet.create({
     color: "#7E7E8A",
     marginTop: 2,
   },
-  providerBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(255, 51, 75, 0.12)",
-    paddingVertical: 3,
-    paddingHorizontal: 7,
-    borderRadius: 5,
+  badgeRow: {
+    flexDirection: "row",
+    gap: 6,
     marginTop: 6,
+  },
+  providerBadge: {
+    backgroundColor: "rgba(255, 51, 75, 0.12)",
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: 4,
   },
   providerText: {
     color: "#FF334B",
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: "700",
-    letterSpacing: 0.5,
+  },
+  proBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 184, 0, 0.12)",
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: 4,
+    gap: 3,
+  },
+  proText: {
+    color: "#FFB800",
+    fontSize: 9,
+    fontWeight: "700",
   },
   statsRow: {
     flexDirection: "row",
@@ -318,12 +308,45 @@ const styles = StyleSheet.create({
     height: 24,
     backgroundColor: "#22222E",
   },
+  storageCard: {
+    backgroundColor: "#16161F",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#22222E",
+    marginTop: 14,
+  },
+  storageHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  storageTitle: {
+    fontSize: 12,
+    color: "#DDDDE8",
+    fontWeight: "600",
+  },
+  storageValue: {
+    fontSize: 11,
+    color: "#7E7E8A",
+  },
+  storageTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#22222E",
+    overflow: "hidden",
+  },
+  storageBar: {
+    height: "100%",
+    backgroundColor: "#10B981",
+    borderRadius: 3,
+  },
   sectionHeader: {
     fontSize: 11,
     fontWeight: "700",
     color: "#7E7E8A",
     letterSpacing: 0.8,
-    marginTop: 24,
+    marginTop: 22,
     marginBottom: 10,
     marginLeft: 4,
   },
