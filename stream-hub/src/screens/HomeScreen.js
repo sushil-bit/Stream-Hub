@@ -1,297 +1,300 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import LoadingPanel from "../components/Common/LoadingPanel";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  StyleSheet,
-  Text,
   View,
-  ScrollView,
-  StatusBar,
+  Text,
+  StyleSheet,
   TouchableOpacity,
-  Image,
+  Animated,
   Dimensions,
   ActivityIndicator,
+  StatusBar,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import {
-  fetchTrendingMovies,
-  fetchTopAnime,
-  IMAGE_BASE_URL,
-} from "../services/api";
-import { getContinueWatching, removeContinueWatching, clearContinueWatching } from "../services/storage";
-import HeroCarousel from "../components/Feed/HeroCarousel";
-import { HomeSkeleton } from "../components/Common/SkeletonLoader";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { normalizeTmdbItem, normalizeJikanItem } from "../utils/mediaNormalizer";
+import UnifiedMediaCard from "../components/UnifiedMediaCard";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
+const { width } = Dimensions.get("window");
+const TMDB_API_KEY = "e2c349924558593414bcbfca414b2d1d";
+const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
+
+const HEADER_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 46;
+const TOTAL_TOP_HEIGHT = HEADER_HEIGHT + TAB_BAR_HEIGHT;
+
+const CATEGORIES = [
+  { id: "all", label: "Featured", icon: "sparkles" },
+  { id: "movie", label: "Movies", icon: "film" },
+  { id: "tv", label: "Series", icon: "tv" },
+  { id: "anime", label: "Anime", icon: "play-circle" },
+];
 
 export default function HomeScreen({ navigation }) {
+  const [selectedTab, setSelectedTab] = useState("all");
+  const [mediaList, setMediaList] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const cacheRef = useRef({});
+
+  // Startup default preference hook
   useEffect(() => {
     AsyncStorage.getItem("@streamhub_default_landing").then((landing) => {
-      if (landing === "movie" || landing === "tv") {
-        if (typeof setSelectedCategory === "function") {
-          setSelectedCategory(landing);
-        } else if (typeof setActiveTab === "function") {
-          setActiveTab(landing);
-        }
+      if (landing && ["all", "movie", "tv", "anime"].includes(landing)) {
+        setSelectedTab(landing);
       }
     });
   }, []);
 
-  const [trending, setTrending] = useState([]);
-  const [anime, setAnime] = useState([]);
-  const [continueWatching, setContinueWatching] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const fetchData = useCallback(async (tabId) => {
+    if (cacheRef.current[tabId]) {
+      setMediaList(cacheRef.current[tabId]);
+      return;
+    }
 
-  useEffect(() => {
-    loadContent();
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadContinueWatching();
-    }, [])
-  );
-
-  const loadContent = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [trendingData, animeData] = await Promise.all([
-        fetchTrendingMovies ? fetchTrendingMovies() : [],
-        fetchTopAnime ? fetchTopAnime() : [],
-      ]);
+      let results = [];
+      if (tabId === "anime") {
+        const res = await fetch(`${JIKAN_BASE_URL}/top/anime?filter=airing&limit=24`);
+        const json = await res.json();
+        results = (json.data || []).map(normalizeJikanItem).filter(Boolean);
+      } else if (tabId === "movie") {
+        const res = await fetch(
+          `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`
+        );
+        const json = await res.json();
+        results = (json.results || []).map((i) => normalizeTmdbItem(i, "movie")).filter(Boolean);
+      } else if (tabId === "tv") {
+        const res = await fetch(
+          `https://api.themoviedb.org/3/tv/on_the_air?api_key=${TMDB_API_KEY}&page=1`
+        );
+        const json = await res.json();
+        results = (json.results || []).map((i) => normalizeTmdbItem(i, "tv")).filter(Boolean);
+      } else {
+        const res = await fetch(
+          `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_API_KEY}`
+        );
+        const json = await res.json();
+        results = (json.results || []).map((i) => normalizeTmdbItem(i, i.media_type)).filter(Boolean);
+      }
 
-      setTrending(Array.isArray(trendingData) ? trendingData : []);
-      const formattedAnime = (Array.isArray(animeData) ? animeData : []).map((a) => ({
-        ...a,
-        isAnime: true,
-        poster_path: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url,
-      }));
-      setAnime(formattedAnime);
+      cacheRef.current[tabId] = results;
+      setMediaList(results);
     } catch (e) {
-      console.warn("Content fetch error:", e);
+      console.warn("Failed loading category:", e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  
-  const handleRemoveItem = async (id) => {
-    const updated = await removeContinueWatching(id);
-    setContinueWatching(updated);
-  };
+  useEffect(() => {
+    fetchData(selectedTab);
+  }, [selectedTab, fetchData]);
 
-  const handleClearAll = async () => {
-    await clearContinueWatching();
-    setContinueWatching([]);
-  };
+  // Smooth translateY clamp: hides the brand title but keeps sub-tabs docked at the top
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT],
+    outputRange: [0, -HEADER_HEIGHT],
+    extrapolate: "clamp",
+  });
 
-  const loadContinueWatching = async () => {
-    try {
-      if (typeof getContinueWatching === "function") {
-        const history = await getContinueWatching();
-        setContinueWatching(Array.isArray(history) ? history : []);
-      }
-    } catch (e) {
-      console.warn("Load continue watching error:", e);
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#0A0A0E" }}>
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-        <SafeAreaView style={{ flex: 1 }}>
-          <HomeSkeleton />
-        </SafeAreaView>
-      </View>
-    );
-  }
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT / 2, HEADER_HEIGHT],
+    outputRange: [1, 0.4, 0],
+    extrapolate: "clamp",
+  });
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient
-        colors={["#2A0912", "#140E14", "#0A0A0E"]}
-        locations={[0, 0.3, 0.7]}
-        style={StyleSheet.absoluteFillObject}
-      />
+      <StatusBar barStyle="light-content" backgroundColor="#0D0C13" />
 
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-          {/* Header */}
-          <View style={styles.topBar}>
-            <View style={styles.brandGroup}>
-              <Text style={styles.brandTitle}>STREAM</Text>
-              <Text style={styles.brandSub}>HUB</Text>
+      {/* Collapsible Header + Sticky Sub-Tabs Container */}
+      <Animated.View
+        style={[
+          styles.topContainer,
+          { transform: [{ translateY: headerTranslateY }] },
+        ]}
+      >
+        {/* Top Branding (Hides away on scroll) */}
+        <Animated.View style={[styles.mainHeader, { opacity: headerOpacity }]}>
+          <View style={styles.logoRow}>
+            <View style={styles.logoIcon}>
+              <Ionicons name="play" size={16} color="#FFFFFF" />
             </View>
-            <TouchableOpacity style={styles.searchIconBtn} onPress={() => navigation.navigate("Explore")}>
-              <Ionicons name="search" size={20} color="#FFF" />
-            </TouchableOpacity>
+            <Text style={styles.brandTitle}>Stream-Hub</Text>
           </View>
+          <TouchableOpacity
+            style={styles.searchBtn}
+            onPress={() => navigation.navigate("Explore")}
+          >
+            <Ionicons name="search-outline" size={20} color="#DDDDE8" />
+          </TouchableOpacity>
+        </Animated.View>
 
-          {/* Hero 3D Carousel */}
-          {trending.length > 0 && (
-            <HeroCarousel
-              items={trending.slice(0, 7)}
-              onItemPress={(item) => navigation.navigate("DetailsScreen", { media: item })}
-              onPlayPress={(item) => navigation.navigate("PlayerScreen", { media: item })}
+        {/* Categories Tab Strip (Movie / Series / Anime / TV) */}
+        <View style={styles.tabStrip}>
+          {CATEGORIES.map((cat) => {
+            const isActive = selectedTab === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.tabItem, isActive && styles.tabItemActive]}
+                onPress={() => setSelectedTab(cat.id)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={cat.icon}
+                  size={14}
+                  color={isActive ? "#FF334B" : "#7E7E8A"}
+                />
+                <Text
+                  style={[
+                    styles.tabItemText,
+                    isActive && styles.tabItemTextActive,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Animated.View>
+
+      {/* Main Feed Content */}
+      {loading && mediaList.length === 0 ? (
+        <View style={styles.centerLoader}>
+          <ActivityIndicator size="large" color="#FF334B" />
+        </View>
+      ) : (
+        <Animated.FlatList
+          data={mediaList}
+          keyExtractor={(item) => item.id}
+          numColumns={3}
+          columnWrapperStyle={styles.rowWrapper}
+          contentContainerStyle={styles.listContent}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+          renderItem={({ item }) => (
+            <UnifiedMediaCard
+              item={item}
+              onPress={(media) =>
+                navigation.navigate("Details", {
+                  id: media.rawId,
+                  mediaType: media.mediaType,
+                  source: media.source,
+                  item: media,
+                })
+              }
             />
           )}
-
-          {/* Continue Watching Row */}
-          {continueWatching.length > 0 && (
-            <View style={styles.shelfSection}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 12 }}>
-    <Text style={[styles.shelfTitle, { marginHorizontal: 0, marginBottom: 0 }]}>Continue Watching</Text>
-    <TouchableOpacity onPress={handleClearAll}>
-      <Text style={{ color: "#FF334B", fontSize: 12, fontWeight: "700" }}>Clear All</Text>
-    </TouchableOpacity>
-  </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfList}>
-                {continueWatching.map((item, idx) => {
-                  const poster = item.poster_path?.startsWith("http")
-                    ? item.poster_path
-                    : item.poster_path
-                    ? IMAGE_URL + item.poster_path
-                    : "https://via.placeholder.com/300x450";
-
-                  return (
-                    <View key={"cw-" + (item.id || idx)} style={styles.cwCard}>
-    <TouchableOpacity
-      style={{ position: "absolute", top: 4, right: 4, zIndex: 10, padding: 2 }}
-      onPress={() => handleRemoveItem(item.id || item.mal_id)}
-    >
-      <Ionicons name="close-circle" size={18} color="#FFF" />
-    </TouchableOpacity>
-    <TouchableOpacity
-      style={{ flex: 1 }}
-      activeOpacity={0.85}
-      onPress={() => navigation.navigate("PlayerScreen", { media: item })}
-    >
-                      <Image source={{ uri: poster }} style={styles.cwPoster} />
-                      <View style={styles.cwOverlay}>
-                        <View style={styles.cwPlayCircle}>
-                          <Ionicons name="play" size={16} color="#FFF" />
-                        </View>
-                      </View>
-                      <Text style={styles.cardTitle} numberOfLines={1}>
-                        {item.title || item.name}
-                      </Text>
-                      {item.lastEpisode ? (
-                        <Text style={styles.cardSub}>EP {item.lastEpisode}</Text>
-                      ) : null}
-                    </TouchableOpacity>
-</View>
-);})}
-</ScrollView>
-            </View>
-          )}
-
-          {/* Trending Movies Shelf */}
-          <View style={styles.shelfSection}>
-            <Text style={styles.shelfTitle}>Trending Movies</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfList}>
-              {trending.map((item, idx) => {
-                const poster = item.poster_path ? IMAGE_URL + item.poster_path : "https://via.placeholder.com/300x450";
-                return (
-                  <TouchableOpacity
-                    key={"trend-" + (item.id || idx)}
-                    style={styles.mediaCard}
-                    activeOpacity={0.85}
-                    onPress={() => navigation.navigate("DetailsScreen", { media: item })}
-                  >
-                    <Image source={{ uri: poster }} style={styles.cardPoster} />
-                    <Text style={styles.cardTitle} numberOfLines={1}>
-                      {item.title || item.name}
-                    </Text>
-                    <Text style={styles.cardSub}>{item.release_date?.split("-")[0] || "Movie"}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Top Airing Anime Shelf */}
-          <View style={styles.shelfSection}>
-            <Text style={styles.shelfTitle}>Top Airing Anime</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelfList}>
-              {anime.map((item, idx) => {
-                const poster = item.poster_path || "https://via.placeholder.com/300x450";
-                return (
-                  <TouchableOpacity
-                    key={"anime-" + (item.mal_id || idx)}
-                    style={styles.mediaCard}
-                    activeOpacity={0.85}
-                    onPress={() => navigation.navigate("DetailsScreen", { media: item })}
-                  >
-                    <Image source={{ uri: poster }} style={styles.cardPoster} />
-                    <Text style={styles.cardTitle} numberOfLines={1}>
-                      {item.title || item.name}
-                    </Text>
-                    <Text style={styles.cardSub}>Anime</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A0A0E" },
-  loaderContainer: { flex: 1, backgroundColor: "#0A0A0E", justifyContent: "center", alignItems: "center" },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 10,
+  container: {
+    flex: 1,
+    backgroundColor: "#0D0C13",
   },
-  brandGroup: { flexDirection: "row", alignItems: "center" },
-  brandTitle: { color: "#FFF", fontSize: 20, fontWeight: "900", letterSpacing: 1 },
-  brandSub: { color: "#FF334B", fontSize: 20, fontWeight: "900", letterSpacing: 1, marginLeft: 2 },
-  searchIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#161622",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  shelfSection: { marginTop: 24 },
-  shelfTitle: { color: "#FFF", fontSize: 17, fontWeight: "800", marginHorizontal: 20, marginBottom: 12 },
-  shelfList: { paddingHorizontal: 20, gap: 12 },
-  mediaCard: { width: 120 },
-  cardPoster: { width: 120, height: 170, borderRadius: 12, backgroundColor: "#161622" },
-  cardTitle: { color: "#FFF", fontSize: 13, fontWeight: "600", marginTop: 6 },
-  cardSub: { color: "#7E7E8E", fontSize: 11, marginTop: 2 },
-  cwCard: { width: 140 },
-  cwPoster: { width: 140, height: 95, borderRadius: 12, backgroundColor: "#161622" },
-  cwOverlay: {
+  topContainer: {
     position: "absolute",
     top: 0,
     left: 0,
-    width: 140,
-    height: 95,
-    borderRadius: 12,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "center",
-    alignItems: "center",
+    right: 0,
+    zIndex: 10,
+    backgroundColor: "#0D0C13",
+    paddingTop: 44, // Safe status bar padding
   },
-  cwPlayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,51,75,0.85)",
-    justifyContent: "center",
+  mainHeader: {
+    height: HEADER_HEIGHT,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+  },
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  logoIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#FF334B",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
+  },
+  searchBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#16161F",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#22222E",
+  },
+  tabStrip: {
+    height: TAB_BAR_HEIGHT,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1B1A24",
+    backgroundColor: "#0D0C13",
+  },
+  tabItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: "#16161F",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "#22222E",
+  },
+  tabItemActive: {
+    backgroundColor: "rgba(255, 51, 75, 0.12)",
+    borderColor: "#FF334B",
+  },
+  tabItemText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7E7E8A",
+  },
+  tabItemTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  listContent: {
+    paddingTop: TOTAL_TOP_HEIGHT + 48,
+    paddingHorizontal: 12,
+    paddingBottom: 95,
+  },
+  rowWrapper: {
+    justifyContent: "space-between",
+  },
+  centerLoader: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
