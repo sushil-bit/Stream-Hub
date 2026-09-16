@@ -33,6 +33,27 @@ const BACKDROP_HEIGHT = SCREEN_WIDTH * 1.1;
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
 export default function DetailsScreen({ route, navigation }) {
+  const [loadingActor, setLoadingActor] = useState(false);
+  const [selectedActor, setSelectedActor] = useState(null);
+  const [actorDetails, setActorDetails] = useState(null);
+
+  const handleActorPress = async (person) => {
+    if (!person?.id) return;
+    setSelectedActor(person);
+    setLoadingActor(true);
+    try {
+      const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
+      const res = await fetch(
+        `https://api.themoviedb.org/3/person/${person.id}?api_key=${TMDB_KEY}&append_to_response=combined_credits`
+      );
+      const data = await res.json();
+      setActorDetails(data);
+    } catch (err) {
+      console.warn('Error fetching actor details:', err);
+    } finally {
+      setLoadingActor(false);
+    }
+  };
   const [extraData, setExtraData] = useState(null);
 
   const fetchMediaDetailsExtra = async (type, id) => {
