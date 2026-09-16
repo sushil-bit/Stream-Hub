@@ -116,7 +116,7 @@ export default function DetailsScreen({ route, navigation }) {
     LinearGradient: typeof LinearGradient,
     SafeAreaView: typeof SafeAreaView
   });
-  const media = route?.params?.media || {};
+  
   const isTv =
     media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
