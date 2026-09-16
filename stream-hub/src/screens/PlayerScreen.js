@@ -1,3 +1,4 @@
+import * as ScreenOrientation from "expo-screen-orientation";
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -23,6 +24,22 @@ const SERVERS = [
 ];
 
 export default function PlayerScreen({ route, navigation }) {
+
+  useEffect(() => {
+    async function lockLandscape() {
+      try {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      } catch (err) {
+        console.warn("ScreenOrientation lock error:", err);
+      }
+    }
+    lockLandscape();
+
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, []);
+
   const media = route?.params?.media || {};
   const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
