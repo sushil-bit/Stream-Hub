@@ -316,7 +316,8 @@ export default function DetailsScreen({ route, navigation }) {
           </View>
 
           {/* Seasons & Episodes Section (Only rendered for TV Shows & Anime) */}
-          {isTv && (
+          <CastRow cast={extraData.topCast} />
+      {isTv && (
             <View style={styles.episodesWrapper}>
               <View style={styles.seasonHeaderRow}>
                 <Text style={styles.sectionHeader}>Seasons & Episodes</Text>
@@ -421,7 +422,7 @@ export default function DetailsScreen({ route, navigation }) {
           )}
         
         {/* Cast & Recommendations */}
-        <CastRow cast={extraData.topCast} />
+        
         <RecommendationRow 
           items={extraData.recommendations} 
           type={isTv ? 'tv' : 'movie'} 
