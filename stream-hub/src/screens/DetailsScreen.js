@@ -13,8 +13,8 @@ import {
   Modal
 } from 'react-native';
 
-import CastRow from '../components/CastRow';
-import RecommendationRow from '../components/RecommendationRow';
+import CastRow from '../components/CastRow.jsx';
+import RecommendationRow from '../components/RecommendationRow.jsx';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, Feather } from "@expo/vector-icons";
