@@ -1,3 +1,4 @@
+import AuthScreen from "./src/screens/AuthScreen";
 import { Ionicons } from '@expo/vector-icons';
 import DownloadsScreen from './src/screens/DownloadsScreen';
 import "react-native-gesture-handler";
@@ -41,6 +42,37 @@ function BottomTabs() {
 }
 
 export default function App() {
+
+  const [userSession, setUserSession] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const verifySession = async () => {
+      try {
+        const session = await AsyncStorage.getItem("@user_session");
+        if (session) setUserSession(JSON.parse(session));
+      } catch (e) {
+        console.warn("Session retrieval failed", e);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    verifySession();
+  }, []);
+
+  
+  if (checkingAuth) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0D0C13", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#FF334B" />
+      </View>
+    );
+  }
+
+  if (!userSession) {
+    return <AuthScreen onLoginSuccess={(session) => setUserSession(session)} />;
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
