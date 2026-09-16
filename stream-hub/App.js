@@ -37,6 +37,7 @@ function BottomTabs() {
           tabBarLabel: 'Downloads',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="download-outline" size={size || 22} color={color} />
+        <Tab.Screen name="Me" component={MeScreen} />
           ),
         }} 
       />
