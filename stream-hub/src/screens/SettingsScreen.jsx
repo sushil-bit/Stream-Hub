@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SettingsScreen({ onClose, navigation }) {
-  const [defaultTab, setDefaultTab] = useState("all"); // 'all' (Home), 'movie', 'tv'
+  const [defaultTab, setDefaultTab] = useState("all");
   const [wifiOnly, setWifiOnly] = useState(true);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
   const [hardwareAccel, setHardwareAccel] = useState(true);
@@ -30,12 +30,25 @@ export default function SettingsScreen({ onClose, navigation }) {
   };
 
   const handleBack = () => {
-    if (onClose) {
+    if (typeof onClose === "function") {
       onClose();
       return;
     }
     if (navigation?.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
+      return;
+    }
+    const parent = navigation?.getParent?.();
+    if (parent?.canGoBack && parent.canGoBack()) {
+      parent.goBack();
+      return;
+    }
+    if (parent?.navigate) {
+      parent.navigate("Me");
+      return;
+    }
+    if (navigation?.navigate) {
+      navigation.navigate("Me");
     }
   };
 
@@ -56,13 +69,17 @@ export default function SettingsScreen({ onClose, navigation }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.backBtn}
+          activeOpacity={0.7}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+        >
+          <Ionicons name="arrow-back" size={26} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
-      {/* Default App Start Content */}
       <Text style={styles.sectionHeader}>STARTUP PREFERENCE</Text>
       <View style={styles.group}>
         <Text style={styles.selectorSubtitle}>Open automatically on app launch:</Text>
@@ -94,7 +111,6 @@ export default function SettingsScreen({ onClose, navigation }) {
         </View>
       </View>
 
-      {/* Playback Settings */}
       <Text style={styles.sectionHeader}>PLAYBACK & SERVERS</Text>
       <View style={styles.group}>
         <View style={styles.row}>
@@ -124,7 +140,6 @@ export default function SettingsScreen({ onClose, navigation }) {
         </View>
       </View>
 
-      {/* Downloads Settings */}
       <Text style={styles.sectionHeader}>DOWNLOAD PREFERENCES</Text>
       <View style={styles.group}>
         <View style={styles.row}>
@@ -141,7 +156,6 @@ export default function SettingsScreen({ onClose, navigation }) {
         </View>
       </View>
 
-      {/* Storage Management */}
       <Text style={styles.sectionHeader}>STORAGE & DATA</Text>
       <View style={styles.group}>
         <TouchableOpacity style={styles.clickableRow} onPress={clearAppCache} activeOpacity={0.7}>
@@ -173,7 +187,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
-    padding: 6,
+    padding: 8,
   },
   headerTitle: {
     fontSize: 22,
