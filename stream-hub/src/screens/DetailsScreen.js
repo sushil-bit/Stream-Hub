@@ -72,12 +72,13 @@ export default function DetailsScreen({ route, navigation }) {
 
   useEffect(() => {
     checkBookmark();
-    if (isTv && media?.id) {
+    if (isTv && media && media.id) {
       loadTvMetadata();
     }
+    if (media && media.id && !media.mal_id) {
       loadExtraDetails();
     }
-  }, [media?.id, media?.mal_id]);
+  }, [media]);
 
   const loadExtraDetails = async () => {
     setLoadingExtras(true);
