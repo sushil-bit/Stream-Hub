@@ -32,6 +32,7 @@ export default function CastRow({ cast = [], crew = [], onSelectActor }) {
     { id: 'producers', label: 'Producers', data: producers.slice(0, 10), defaultRole: 'Producer' },
   ].filter((cat) => cat.data && cat.data.length > 0);
 
+  if (!cast?.length && !crew?.length) return null;
   if (categories.length === 0) return null;
 
   const currentCategory = categories.find((c) => c.id === activeCategory) || categories[0];

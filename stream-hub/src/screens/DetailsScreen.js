@@ -59,13 +59,26 @@ export default function DetailsScreen({ route, navigation }) {
   const fetchMediaDetailsExtra = async (type, id) => {
     try {
       const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
-      const endpoint = type === 'tv' ? 'tv' : 'movie';
-      const url = `https://api.themoviedb.org/3/${endpoint}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,recommendations`;
-      const res = await fetch(url);
-      const data = await res.json();
-      setExtraData(data);
+      const isTvEndpoint = type === "tv";
+      const endpoint = isTvEndpoint ? "tv" : "movie";
+      
+      const [detailsRes, creditsRes] = await Promise.all([
+        fetch(`https://api.themoviedb.org/3/${endpoint}/${id}?api_key=${TMDB_KEY}&append_to_response=recommendations`),
+        fetch(`https://api.themoviedb.org/3/${endpoint}/${id}/credits?api_key=${TMDB_KEY}`)
+      ]);
+
+      const detailsData = await detailsRes.json();
+      const creditsData = await creditsRes.json();
+
+      setExtraData({
+        ...detailsData,
+        credits: {
+          cast: creditsData?.cast || [],
+          crew: creditsData?.crew || []
+        }
+      });
     } catch (e) {
-      console.warn('Error fetching media extras:', e);
+      console.warn("Error fetching media extras:", e);
     }
   };
   console.log('[DEBUG Component Imports]', {
@@ -370,11 +383,9 @@ export default function DetailsScreen({ route, navigation }) {
 
           {/* Seasons & Episodes Section (Only rendered for TV Shows & Anime) */}
           <CastRow
-        cast={extraData?.credits?.cast || extraData?.cast || []}
-        crew={extraData?.credits?.crew || extraData?.crew || []}
-        onSelectActor={(actor) => {
-          if (typeof setSelectedActor === 'function') setSelectedActor(actor);
-        }}
+        cast={extraData?.credits?.cast || []}
+        crew={extraData?.credits?.crew || []}
+        onSelectActor={handleActorPress}
       />
       {isTv && (
         <View style={styles.tvSectionContainer}>
