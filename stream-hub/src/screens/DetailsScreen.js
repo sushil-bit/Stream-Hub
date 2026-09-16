@@ -29,7 +29,7 @@ const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
 const fetchMediaDetailsExtra = async (type, id) => {
   try {
-    const TMDB_KEY = "2c46288716a18f8861fbac2907798388";
+    const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
     const [recsRes, credsRes] = await Promise.allSettled([
       fetch(`https://api.themoviedb.org/3/${type}/${id}/recommendations?api_key=${TMDB_KEY}&page=1`),
       fetch(`https://api.themoviedb.org/3/${type}/${id}/credits?api_key=${TMDB_KEY}`),

@@ -86,7 +86,7 @@ export const fetchTvDetails = async (tvId) => {
 
 export const fetchMediaDetailsExtra = async (type, id) => {
   try {
-    const TMDB_API_KEY = "2c46288716a18f8861fbac2907798388";
+    const TMDB_API_KEY = "fb2e44c3e763e38d9214c5266987acf3";
     const [recsRes, credsRes] = await Promise.allSettled([
       fetch(`https://api.themoviedb.org/3/${type}/${id}/recommendations?api_key=${TMDB_API_KEY}&page=1`),
       fetch(`https://api.themoviedb.org/3/${type}/${id}/credits?api_key=${TMDB_API_KEY}`),
