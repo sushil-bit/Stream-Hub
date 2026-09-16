@@ -1,4 +1,4 @@
-import DownloadButton from '../components/common/DownloadButton.jsx';
+import DownloadButton from '../components/DownloadButton.jsx';
 import { getDownloads } from '../services/downloadManager';
 import React, { useState, useEffect } from 'react';
 import {
