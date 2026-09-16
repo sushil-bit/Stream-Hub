@@ -1,4 +1,4 @@
-import LoadingPanel from "../components/Common/LoadingPanel";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Share,
   Modal
 } from 'react-native';
+import LoadingPanel from "../components/Common/LoadingPanel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, Feather } from "@expo/vector-icons";
