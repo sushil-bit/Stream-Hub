@@ -30,29 +30,17 @@ const BACKDROP_HEIGHT = SCREEN_WIDTH * 1.1;
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
 const fetchMediaDetailsExtra = async (type, id) => {
-  try {
-    const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
-    const [recsRes, credsRes] = await Promise.allSettled([
-      fetch(`https://api.themoviedb.org/3/${type}/${id}/recommendations?api_key=${TMDB_KEY}&page=1`),
-      fetch(`https://api.themoviedb.org/3/${type}/${id}/credits?api_key=${TMDB_KEY}`),
-    ]);
-
-    const recommendations = recsRes.status === 'fulfilled'
-      ? (await recsRes.value.json()).results || []
-      : [];
-
-    const credits = credsRes.status === 'fulfilled'
-      ? await credsRes.value.json()
-      : { cast: [], crew: [] };
-
-    const directors = credits.crew ? credits.crew.filter((c) => c.job === 'Director') : [];
-    const topCast = credits.cast ? credits.cast.slice(0, 15) : [];
-
-    return { recommendations, topCast, directors };
-  } catch (err) {
-    return { recommendations: [], topCast: [], directors: [] };
-  }
-};
+    try {
+      const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
+      const endpoint = type === 'tv' ? 'tv' : 'movie';
+      const url = `https://api.themoviedb.org/3/${endpoint}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,recommendations`;
+      const res = await fetch(url);
+      const data = await res.json();
+      setExtraData(data);
+    } catch (e) {
+      console.warn('Error fetching media extras:', e);
+    }
+  };
 
 export default function DetailsScreen({ route, navigation }) {
   console.log('[DEBUG Component Imports]', {
@@ -388,7 +376,7 @@ export default function DetailsScreen({ route, navigation }) {
           </View>
 
           {/* Seasons & Episodes Section (Only rendered for TV Shows & Anime) */}
-          <CastRow cast={extraData?.credits?.cast || []} onSelectActor={handleActorPress} />
+          <CastRow cast={extraData?.credits?.cast || []} crew={extraData?.credits?.crew || []} onSelectActor={handleActorPress} />
       {isTv && (
         <View style={styles.tvSectionContainer}>
           {/* Seasons Header + Layout Mode Toggle (Dropdown vs Slideable) */}
