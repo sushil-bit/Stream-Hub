@@ -34,24 +34,28 @@ export default function SettingsScreen({ onClose, navigation }) {
       onClose();
       return;
     }
-    if (navigation && typeof navigation.pop === "function") {
-      try {
-        navigation.pop();
-        return;
-      } catch (e) {}
+
+    // Check if we can safely go back in history
+    if (navigation?.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+      return;
     }
-    if (navigation && typeof navigation.goBack === "function") {
-      try {
-        navigation.goBack();
-        return;
-      } catch (e) {}
+
+    // Fall back to the parent tab navigator or root container
+    const parent = navigation?.getParent ? navigation.getParent() : null;
+    if (parent?.canGoBack && parent.canGoBack()) {
+      parent.goBack();
+      return;
     }
-    const parent = navigation?.getParent?.();
-    if (parent && typeof parent.goBack === "function") {
-      try {
-        parent.goBack();
-        return;
-      } catch (e) {}
+
+    // Reset or jump back to the main app container
+    const state = navigation?.getState ? navigation.getState() : null;
+    if (state?.routeNames?.includes("Main")) {
+      navigation.navigate("Main");
+    } else if (state?.routeNames?.includes("Home")) {
+      navigation.navigate("Home");
+    } else if (parent?.navigate) {
+      parent.navigate("Me");
     }
   };
 
