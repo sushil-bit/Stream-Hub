@@ -117,8 +117,6 @@ export default function DetailsScreen({ route, navigation }) {
     SafeAreaView: typeof SafeAreaView
   });
   
-  const isTv =
-    media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [seasons, setSeasons] = useState([]);
