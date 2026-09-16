@@ -1,3 +1,4 @@
+import { CommonActions } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
   View,
@@ -16,21 +17,25 @@ export default function SettingsScreen({ navigation }) {
   const [hardwareAccel, setHardwareAccel] = useState(true);
   const [cacheSize, setCacheSize] = useState("38.4 MB");
 
-  const handleBack = () => {
+    const handleBack = () => {
     if (navigation?.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
       return;
     }
-    const parent = navigation?.getParent && navigation.getParent();
+    const parent = navigation?.getParent ? navigation.getParent() : null;
     if (parent?.canGoBack && parent.canGoBack()) {
       parent.goBack();
       return;
     }
-    // Fallback to top-level tab routes
+    // Safe stack pop/reset fallback without targeting unregistered names
     try {
-      navigation.navigate("Home");
-    } catch (e) {
-      console.warn("Back navigation fallback:", e);
+      navigation.dispatch(CommonActions.goBack());
+    } catch (err) {
+      // If at root of history, dispatch to first available route in state
+      const rootState = navigation.getState ? navigation.getState() : null;
+      if (rootState && rootState.routeNames && rootState.routeNames.length > 0) {
+        navigation.navigate(rootState.routeNames[0]);
+      }
     }
   };
 
