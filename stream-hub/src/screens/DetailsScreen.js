@@ -108,7 +108,31 @@ export default function DetailsScreen({ route, navigation }) {
   const [loadingExtras, setLoadingExtras] = useState(false);
   const [episodeViewMode, setEpisodeViewMode] = useState('grid');
   const [seasonLayoutMode, setSeasonLayoutMode] = useState('dropdown'); // 'dropdown' | 'slideable'
-  const [seasonModalVisible, setSeasonModalVisible] = useState(false); // 'grid' | 'list'
+  const [seasonModalVisible, setSeasonModalVisible] = useState(false);
+  const [selectedActor, setSelectedActor] = useState(null);
+  const [actorDetails, setActorDetails] = useState(null);
+  const [loadingActor, setLoadingActor] = useState(false);
+
+  const handleActorPress = async (actor) => {
+    setSelectedActor(actor);
+    setLoadingActor(true);
+    try {
+      const key = 'fb2e44c3e763e38d9214c5266987acf3';
+      const [bioRes, creditsRes] = await Promise.allSettled([
+        fetch(`https://api.themoviedb.org/3/person/${actor.id}?api_key=${key}`).then(r => r.json()),
+        fetch(`https://api.themoviedb.org/3/person/${actor.id}/combined_credits?api_key=${key}`).then(r => r.json()),
+      ]);
+
+      setActorDetails({
+        bio: bioRes.status === 'fulfilled' ? bioRes.value : {},
+        credits: creditsRes.status === 'fulfilled' && creditsRes.value?.cast ? creditsRes.value.cast : []
+      });
+    } catch (err) {
+      console.warn('Failed to load actor profile:', err);
+    } finally {
+      setLoadingActor(false);
+    }
+  }; // 'grid' | 'list'
 
 
   useEffect(() => {
@@ -363,7 +387,7 @@ export default function DetailsScreen({ route, navigation }) {
           </View>
 
           {/* Seasons & Episodes Section (Only rendered for TV Shows & Anime) */}
-          <CastRow cast={extraData.topCast} />
+          <CastRow cast={extraData.credits.cast} onSelectActor={handleActorPress} />
       {isTv && (
         <View style={styles.tvSectionContainer}>
           {/* Seasons Header + Layout Mode Toggle (Dropdown vs Slideable) */}
@@ -577,12 +601,191 @@ export default function DetailsScreen({ route, navigation }) {
         </TouchableOpacity>
       </Modal>
 
-        </ScrollView>
+      {/* Actor Bio & Filmography Modal */}
+      <Modal
+        visible={!!selectedActor}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSelectedActor(null)}
+      >
+        <View style={styles.actorModalBackdrop}>
+          <View style={styles.actorModalContainer}>
+            <View style={styles.actorModalHeader}>
+              <Text style={styles.actorModalTitle} numberOfLines={1}>
+                {selectedActor?.name}
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedActor(null)}>
+                <Ionicons name="close-circle" size={26} color="#8A8A9E" />
+              </TouchableOpacity>
+            </View>
+
+            {loadingActor ? (
+              <ActivityIndicator size="large" color="#E50914" style={{ marginVertical: 40 }} />
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                <View style={styles.actorProfileRow}>
+                  <Image
+                    source={{
+                      uri: selectedActor?.profile_path
+                        ? `https://image.tmdb.org/t/p/w185${selectedActor.profile_path}`
+                        : 'https://via.placeholder.com/185x278.png?text=No+Photo'
+                    }}
+                    style={styles.actorModalAvatar}
+                  />
+                  <View style={styles.actorProfileDetails}>
+                    {actorDetails?.bio?.birthday ? (
+                      <Text style={styles.actorMetaText}>Born: {actorDetails.bio.birthday}</Text>
+                    ) : null}
+                    {actorDetails?.bio?.place_of_birth ? (
+                      <Text style={styles.actorMetaText} numberOfLines={2}>
+                        From: {actorDetails.bio.place_of_birth}
+                      </Text>
+                    ) : null}
+                    {actorDetails?.bio?.known_for_department ? (
+                      <Text style={styles.actorMetaText}>Role: {actorDetails.bio.known_for_department}</Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                {actorDetails?.bio?.biography ? (
+                  <View style={styles.actorBioSection}>
+                    <Text style={styles.actorSubheading}>Biography</Text>
+                    <Text style={styles.actorBioBody} numberOfLines={6}>
+                      {actorDetails.bio.biography}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.actorCreditsSection}>
+                  <Text style={styles.actorSubheading}>Known For & Filmography</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingTop: 8 }}>
+                    {(actorDetails?.credits || [])
+                      .filter(item => item.poster_path)
+                      .slice(0, 20)
+                      .map((item) => (
+                        <TouchableOpacity
+                          key={`${item.id}-${item.media_type}`}
+                          style={styles.creditCard}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            setSelectedActor(null);
+                            navigation.push('DetailsScreen', { media: item });
+                          }}
+                        >
+                          <Image
+                            source={{ uri: `https://image.tmdb.org/t/p/w185${item.poster_path}` }}
+                            style={styles.creditPoster}
+                          />
+                          <Text style={styles.creditTitle} numberOfLines={1}>
+                            {item.title || item.name}
+                          </Text>
+                          <Text style={styles.creditCharacter} numberOfLines={1}>
+                            {item.character ? item.character : item.media_type?.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                  </ScrollView>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+</ScrollView>
       </View>
     );
   }
 
   const styles = StyleSheet.create({
+  actorModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
+  actorModalContainer: {
+    backgroundColor: '#16161F',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: '#2A2A3A',
+  },
+  actorModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#242432',
+  },
+  actorModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    flex: 1,
+  },
+  actorProfileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 14,
+  },
+  actorModalAvatar: {
+    width: 75,
+    height: 75,
+    borderRadius: 38,
+    backgroundColor: '#252533',
+    borderWidth: 1,
+    borderColor: '#3D3D4E',
+  },
+  actorProfileDetails: {
+    flex: 1,
+    gap: 3,
+  },
+  actorMetaText: {
+    color: '#A2A2B8',
+    fontSize: 12,
+  },
+  actorBioSection: {
+    marginBottom: 16,
+  },
+  actorSubheading: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  actorBioBody: {
+    color: '#9595A8',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  actorCreditsSection: {
+    marginBottom: 10,
+  },
+  creditCard: {
+    width: 95,
+  },
+  creditPoster: {
+    width: 95,
+    height: 140,
+    borderRadius: 8,
+    backgroundColor: '#252533',
+    marginBottom: 5,
+  },
+  creditTitle: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  creditCharacter: {
+    color: '#7D7D92',
+    fontSize: 10,
+  },
   tvSectionContainer: {
     marginVertical: 14,
     paddingHorizontal: 16,
