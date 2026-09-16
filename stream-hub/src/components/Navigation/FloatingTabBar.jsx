@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     borderColor: '#22222E',
     elevation: 8,
   },
-  tabItem: { alignItems: 'center', justifyContent: 'center' },
+  tabItem: { flex: 1,  alignItems: 'center', justifyContent: 'center' },
   tabLabel: { fontSize: 10, color: '#7E7E8A', marginTop: 2 },
   activeLabel: { color: '#FF334B' },
   centerFab: { top: -14 },

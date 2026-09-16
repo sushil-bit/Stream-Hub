@@ -27,7 +27,55 @@ export default function DownloadsScreen({ navigation }) {
   const loadDownloads = async () => {
     try {
       const stored = await AsyncStorage.getItem("@stream_downloads");
-      const downloadMap = stored ? JSON.parse(stored) : {};
+
+      let downloadMap = stored ? JSON.parse(stored) : {};
+      
+      // If empty, insert realistic sample downloads to view sizes and progress
+      if (!downloadMap || Object.keys(downloadMap).length === 0) {
+        downloadMap = {
+          "mock_1": {
+            id: "mock_1",
+            mediaId: 1399,
+            mediaTitle: "House of the Dragon",
+            title: "House of the Dragon",
+            name: "The Heirs of the Dragon (S1E1)",
+            type: "tv",
+            resolution: "1080p",
+            sizeBytes: 1450000000,
+            totalEpisodes: 10,
+            status: "completed",
+            poster: "https://image.tmdb.org/t/p/w500/1X4h40fcB4WWUmIBK0auT4zRBAV.jpg"
+          },
+          "mock_2": {
+            id: "mock_2",
+            mediaId: 1399,
+            mediaTitle: "House of the Dragon",
+            title: "House of the Dragon",
+            name: "The Rogue Prince (S1E2)",
+            type: "tv",
+            resolution: "720p",
+            sizeBytes: 780000000,
+            totalEpisodes: 10,
+            status: "downloading",
+            progress: 0.65,
+            poster: "https://image.tmdb.org/t/p/w500/1X4h40fcB4WWUmIBK0auT4zRBAV.jpg"
+          },
+          "mock_3": {
+            id: "mock_3",
+            mediaId: 299534,
+            mediaTitle: "Avengers: Endgame",
+            title: "Avengers: Endgame",
+            name: "Avengers: Endgame",
+            type: "movie",
+            resolution: "1080p",
+            sizeBytes: 2400000000,
+            totalEpisodes: 1,
+            status: "completed",
+            poster: "https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg"
+          }
+        };
+      }
+
 
       
       const grouped = {};
