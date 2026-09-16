@@ -90,6 +90,37 @@ export default function DetailsScreen({ route, navigation }) {
     }
   };
 
+  const [extraData, setExtraData] = useState({
+    recommendations: [],
+    topCast: [],
+    directors: [],
+  });
+  const [loadingExtras, setLoadingExtras] = useState(false);
+
+  useEffect(() => {
+    checkBookmark();
+    if (isTv && media?.id) {
+      loadTvMetadata();
+    }
+    if (media?.id && !media?.mal_id) {
+      loadExtraDetails();
+    }
+  }, [media?.id, media?.mal_id]);
+
+  const loadExtraDetails = async () => {
+    if (!media?.id) return;
+    setLoadingExtras(true);
+    try {
+      const type = isTv ? 'tv' : 'movie';
+      const data = await fetchMediaDetailsExtra(type, media.id);
+      setExtraData(data);
+    } catch (err) {
+      console.warn('Failed to load extra details:', err);
+    } finally {
+      setLoadingExtras(false);
+    }
+  };
+
   const loadTvMetadata = async () => {
     try {
       const tvInfo = await fetchTvDetails(media.id);
