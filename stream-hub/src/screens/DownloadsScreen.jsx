@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,140 +7,158 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { getDownloads, removeDownloadRecord } from '../services/downloadManager';
-
-const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w185';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function DownloadsScreen({ navigation }) {
-
-  const handleDownloadRemaining = (folder) => {
-    if (!folder) return;
-    if (folder.type === "movie") {
-      // Re-trigger download config modal or single download for movie
-      navigation.navigate("DetailsScreen", { media: folder.media || { id: folder.id, title: folder.title } });
-      return;
-    }
-    // Navigate back to details screen with targeted season
-    navigation.navigate("DetailsScreen", { 
-      media: folder.media || { id: folder.id, name: folder.title, media_type: "tv" },
-      autoOpenDownloads: true,
-      targetSeason: folder.seasonNumber || 1
-    });
-  };
- navigation }) {
   const [folders, setFolders] = useState([]);
   const [expandedFolders, setExpandedFolders] = useState({});
 
-  const loadData = async () => {
-    const raw = await getDownloads();
-    setFolders(Object.values(raw || {}));
+  const loadDownloads = async () => {
+    try {
+      const stored = await AsyncStorage.getItem("@stream_downloads");
+      const downloadMap = stored ? JSON.parse(stored) : {};
+
+      const grouped = {};
+      Object.values(downloadMap).forEach((item) => {
+        const key = item.mediaTitle || item.title || "Uncategorized";
+        if (!grouped[key]) {
+          grouped[key] = {
+            folderKey: key,
+            title: key,
+            poster: item.poster || null,
+            type: item.type || "movie",
+            mediaId: item.mediaId || item.id,
+            totalCount: item.totalEpisodes || null,
+            items: [],
+          };
+        }
+        grouped[key].items.push(item);
+      });
+
+      setFolders(Object.values(grouped));
+    } catch (e) {
+      console.warn("Failed to load downloads:", e);
+    }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [])
-  );
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", loadDownloads);
+    loadDownloads();
+    return unsubscribe;
+  }, [navigation]);
 
   const toggleFolder = (key) => {
-    setExpandedFolders((prev) => ({ ...prev, [key]: !prev[key] }));
+    setExpandedFolders((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
-  const handleDeleteFolder = (folderKey, title) => {
-    Alert.alert('Delete Folder', `Remove all downloads for "${title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete All',
-        style: 'destructive',
-        onPress: async () => {
-          await removeDownloadRecord(folderKey);
-          loadData();
-        },
-      },
-    ]);
+  const deleteItem = async (folderKey, itemId) => {
+    try {
+      const stored = await AsyncStorage.getItem("@stream_downloads");
+      const downloadMap = stored ? JSON.parse(stored) : {};
+      delete downloadMap[itemId];
+      await AsyncStorage.setItem("@stream_downloads", JSON.stringify(downloadMap));
+      loadDownloads();
+    } catch (e) {
+      console.warn("Failed to delete item:", e);
+    }
   };
 
-  const handleDeleteFile = (folderKey, fileId, name) => {
-    Alert.alert('Delete File', `Remove "${name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await removeDownloadRecord(folderKey, fileId);
-          loadData();
-        },
-      },
-    ]);
+  const handleDownloadRemaining = (folder) => {
+    navigation.navigate("DetailsScreen", {
+      media: { id: folder.mediaId, title: folder.title, name: folder.title },
+      autoOpenDownloads: true,
+    });
   };
 
   const renderFolderItem = ({ item }) => {
     const isExpanded = !!expandedFolders[item.folderKey];
-    const totalFiles = item.files?.length || 0;
-    const poster = item.posterPath
-      ? `${TMDB_IMAGE_BASE}${item.posterPath}`
-      : 'https://via.placeholder.com/185x278.png?text=No+Cover';
+    const downloadedCount = item.items.length;
+    const hasRemaining = item.totalCount && downloadedCount < item.totalCount;
 
     return (
       <View style={styles.folderCard}>
-        {/* Folder Summary Row */}
         <TouchableOpacity
           style={styles.folderHeader}
           onPress={() => toggleFolder(item.folderKey)}
           activeOpacity={0.7}
         >
-          <Image source={{ uri: poster }} style={styles.poster} />
-          <View style={styles.folderMeta}>
+          {item.poster ? (
+            <Image source={{ uri: item.poster }} style={styles.posterThumb} />
+          ) : (
+            <View style={styles.posterFallback}>
+              <Ionicons name="film-outline" size={24} color="#7E7E8A" />
+            </View>
+          )}
+
+          <View style={styles.folderInfo}>
             <Text style={styles.folderTitle} numberOfLines={1}>
               {item.title}
             </Text>
-            <Text style={styles.folderSub}>
-              {item.mediaType.toUpperCase()} • {totalFiles} {totalFiles === 1 ? 'file' : 'files'}
+            <Text style={styles.folderSubtitle}>
+              {downloadedCount} {downloadedCount === 1 ? "file" : "files"}
+              {item.totalCount ? ` / ${item.totalCount} total` : ""}
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.deleteFolderBtn}
-            onPress={() => handleDeleteFolder(item.folderKey, item.title)}
-          >
-            <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
-          </TouchableOpacity>
+
           <Ionicons
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color="#8A8A9E"
-            style={{ marginLeft: 8 }}
+            name={isExpanded ? "chevron-up" : "chevron-down"}
+            size={20}
+            color="#7E7E8A"
           />
         </TouchableOpacity>
 
-        {/* Expanded Files / Episodes List */}
+        <View style={styles.folderStatusContainer}>
+          {hasRemaining ? (
+            <TouchableOpacity
+              style={styles.downloadRemainingBtn}
+              onPress={() => handleDownloadRemaining(item)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="cloud-download-outline" size={14} color="#FF334B" />
+              <Text style={styles.downloadRemainingText}>
+                Download Remaining ({item.totalCount - downloadedCount} left)
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.downloadCompleteBadge}>
+              <Ionicons name="checkmark-circle" size={14} color="#46D369" />
+              <Text style={styles.downloadCompleteText}>All Downloaded</Text>
+            </View>
+          )}
+        </View>
+
         {isExpanded && (
-          <View style={styles.fileListContainer}>
-            {item.files?.map((file) => (
-              <View key={file.id} style={styles.fileRow}>
-                <View style={styles.fileInfo}>
+          <View style={styles.filesList}>
+            {item.items.map((file, idx) => (
+              <View key={String(file.id || idx)} style={styles.fileRow}>
+                <View style={styles.fileDetails}>
                   <Text style={styles.fileName} numberOfLines={1}>
-                    {file.season
-                      ? `S${file.season}:E${file.episode} - ${file.episodeName || 'Episode'}`
-                      : file.title}
+                    {file.name || `Episode ${file.episodeNumber || idx + 1}`}
                   </Text>
-                  <Text style={styles.fileBadges}>
-                    {file.resolution} • {file.language?.split(' ')[0]} • Sub: {file.subtitle?.split(' ')[0]} • {file.size}
+                  <Text style={styles.fileMeta}>
+                    {file.resolution || "720p"} • {file.size || "Downloaded"}
                   </Text>
                 </View>
+
                 <TouchableOpacity
                   onPress={() =>
-                    handleDeleteFile(
-                      item.folderKey,
-                      file.id,
-                      file.episodeName || file.title
-                    )
+                    Alert.alert("Delete Download", "Remove this file?", [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete",
+                        style: "destructive",
+                        onPress: () => deleteItem(item.folderKey, file.id),
+                      },
+                    ])
                   }
-                  style={styles.deleteFileBtn}
+                  style={styles.deleteBtn}
                 >
-                  <Ionicons name="close-circle-outline" size={18} color="#8A8A9E" />
+                  <Ionicons name="trash-outline" size={18} color="#FF334B" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -152,18 +170,18 @@ export default function DownloadsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.screenHeader}>Downloaded Content</Text>
+      <Text style={styles.screenHeader}>Offline Downloads</Text>
       {folders.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="folder-open-outline" size={54} color="#454559" />
-          <Text style={styles.emptyText}>No offline media downloaded yet.</Text>
+          <Ionicons name="cloud-offline-outline" size={60} color="#37374D" />
+          <Text style={styles.emptyText}>No downloaded content yet</Text>
         </View>
       ) : (
         <FlatList
           data={folders}
-          keyExtractor={(item, index) => String(item?.folderKey || item?.id || item?.title || index)}
+          keyExtractor={(item, index) => String(item?.folderKey || index)}
           renderItem={renderFolderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.listContent}
         />
       )}
     </View>
@@ -171,8 +189,77 @@ export default function DownloadsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  folderStatusContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: "#0D0C13",
+    paddingTop: 50,
+  },
+  screenHeader: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -50,
+  },
+  emptyText: {
+    color: "#7E7E8A",
+    fontSize: 15,
+    marginTop: 12,
+  },
+  listContent: {
     paddingHorizontal: 16,
+    paddingBottom: 100,
+  },
+  folderCard: {
+    backgroundColor: "#16161F",
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#252535",
+  },
+  folderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+  },
+  posterThumb: {
+    width: 48,
+    height: 64,
+    borderRadius: 6,
+    backgroundColor: "#20202E",
+  },
+  posterFallback: {
+    width: 48,
+    height: 64,
+    borderRadius: 6,
+    backgroundColor: "#20202E",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  folderInfo: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: "center",
+  },
+  folderTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  folderSubtitle: {
+    color: "#7E7E8A",
+    fontSize: 13,
+    marginTop: 4,
+  },
+  folderStatusContainer: {
+    paddingHorizontal: 12,
     paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
@@ -181,8 +268,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 51, 75, 0.12)",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: "rgba(255, 51, 75, 0.3)",
@@ -197,108 +284,45 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(70, 211, 105, 0.12)",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 6,
-    gap: 6,
+    gap: 5,
   },
   downloadCompleteText: {
     color: "#46D369",
     fontSize: 12,
     fontWeight: "600",
   },
-  container: {
-    flex: 1,
-    backgroundColor: '#0F0F15',
-    paddingTop: 50,
-  },
-  screenHeader: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 30,
-    gap: 12,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  emptyText: {
-    color: '#707085',
-    fontSize: 14,
-  },
-  folderCard: {
-    backgroundColor: '#191924',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#28283C',
-    overflow: 'hidden',
-  },
-  folderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-  },
-  poster: {
-    width: 44,
-    height: 62,
-    borderRadius: 6,
-    backgroundColor: '#262638',
-  },
-  folderMeta: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  folderTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  folderSub: {
-    color: '#8A8A9E',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  deleteFolderBtn: {
-    padding: 6,
-  },
-  fileListContainer: {
-    backgroundColor: '#13131D',
+  filesList: {
+    backgroundColor: "#111118",
     borderTopWidth: 1,
-    borderTopColor: '#242436',
-    paddingVertical: 6,
+    borderTopColor: "#22222E",
+    paddingHorizontal: 12,
   },
   fileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#20202F',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1B1A24",
   },
-  fileInfo: {
+  fileDetails: {
     flex: 1,
   },
   fileName: {
-    color: '#EDEDF5',
-    fontSize: 13,
-    fontWeight: '600',
+    color: "#DDDDE8",
+    fontSize: 14,
+    fontWeight: "500",
   },
-  fileBadges: {
-    color: '#78788E',
-    fontSize: 11,
+  fileMeta: {
+    color: "#7E7E8A",
+    fontSize: 12,
     marginTop: 2,
   },
-  deleteFileBtn: {
-    padding: 4,
-    marginLeft: 8,
+  deleteBtn: {
+    padding: 6,
+    marginLeft: 10,
   },
 });
