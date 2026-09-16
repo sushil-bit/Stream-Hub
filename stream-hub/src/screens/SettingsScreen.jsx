@@ -34,21 +34,24 @@ export default function SettingsScreen({ onClose, navigation }) {
       onClose();
       return;
     }
-    if (navigation?.canGoBack && navigation.canGoBack()) {
-      navigation.goBack();
-      return;
+    if (navigation && typeof navigation.pop === "function") {
+      try {
+        navigation.pop();
+        return;
+      } catch (e) {}
+    }
+    if (navigation && typeof navigation.goBack === "function") {
+      try {
+        navigation.goBack();
+        return;
+      } catch (e) {}
     }
     const parent = navigation?.getParent?.();
-    if (parent?.canGoBack && parent.canGoBack()) {
-      parent.goBack();
-      return;
-    }
-    if (parent?.navigate) {
-      parent.navigate("Me");
-      return;
-    }
-    if (navigation?.navigate) {
-      navigation.navigate("Me");
+    if (parent && typeof parent.goBack === "function") {
+      try {
+        parent.goBack();
+        return;
+      } catch (e) {}
     }
   };
 
@@ -73,7 +76,7 @@ export default function SettingsScreen({ onClose, navigation }) {
           onPress={handleBack}
           style={styles.backBtn}
           activeOpacity={0.7}
-          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
         >
           <Ionicons name="arrow-back" size={26} color="#FFFFFF" />
         </TouchableOpacity>
