@@ -15,7 +15,6 @@ import {
 
 import CastRow from '../components/CastRow';
 import RecommendationRow from '../components/RecommendationRow';
-import { Ionicons } from '@expo/vector-icons';
 import LoadingPanel from "../components/Common/LoadingPanel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
