@@ -1,0 +1,12 @@
+[35mApp.js[m[36m:[m      <[1;31mTab.Screen[m name="Home" component={HomeScreen} />
+[35mApp.js[m[36m:[m      <[1;31mTab.Screen[m name="Explore" component={SearchScreen} />
+[35mApp.js[m[36m:[m      <[1;31mTab.Screen[m name="Details" component={WatchlistScreen} />
+[35mApp.js[m[36m:[m          <[1;31mTab.Screen[m 
+[35mApp.js[m[36m:[m        <Stack.[1;31mScreen name=[m"Main" component={BottomTabs} />
+[35mApp.js[m[36m:[m        <Stack.[1;31mScreen name=[m"PlayerScreen" component={PlayerScreen} />
+[35mApp.js[m[36m:[m        <Stack.[1;31mScreen name=[m"DetailsScreen" component={DetailsScreen} />
+[35mApp.js[m[36m:[m        <Stack.[1;31mScreen name=[m"SearchScreen" component={SearchScreen} />
+[35mpatch_nav_downloads.js[m[36m:[m// 2. Add [1;31mTab.Screen[m entry if Tab Navigator exists
+[35mpatch_nav_downloads.js[m[36m:[m  const tabScreenEntry = `  <[1;31mTab.Screen[m 
+[35mpatch_nav_downloads.js[m[36m:[m  const stackScreenEntry = `  <Stack.[1;31mScreen name=[m"Downloads" component={DownloadsScreen} />
+[35mpatch_nav_downloads.js[m[36m:[m        <[1;31mTab.Screen[m name="Me" component={MeScreen} />\n    </Stack.Navigator>`;
