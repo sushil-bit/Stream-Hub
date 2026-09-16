@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StatusBar,
   FlatList,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -13,38 +14,39 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ScreenOrientation from "expo-screen-orientation";
 import LoadingPanel from "../components/Common/LoadingPanel";
 
+// High-uptime embed mirrors with direct iframe support
 const SERVERS = [
   {
-    id: "vidsrc_icu",
-    name: "VidSrc ICU",
+    id: "vidsrc_net",
+    name: "VidSrc VIP",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? `https://vidsrc.icu/embed/tv/${id}/${season}/${episode}`
-        : `https://vidsrc.icu/embed/movie/${id}`,
-  },
-  {
-    id: "autoembed",
-    name: "AutoEmbed",
-    getUrl: (id, season, episode, isTv) =>
-      isTv
-        ? `https://player.autoembed.cc/embed/tv/${id}/${season}/${episode}`
-        : `https://player.autoembed.cc/embed/movie/${id}`,
-  },
-  {
-    id: "smashystream",
-    name: "SmashyStream",
-    getUrl: (id, season, episode, isTv) =>
-      isTv
-        ? `https://player.smashy.stream/tv/${id}?s=${season}&e=${episode}`
-        : `https://player.smashy.stream/movie/${id}`,
+        ? `https://vidsrc.net/embed/tv/${id}/${season}/${episode}`
+        : `https://vidsrc.net/embed/movie/${id}`,
   },
   {
     id: "vidlink",
-    name: "VidLink PRO",
+    name: "VidLink",
     getUrl: (id, season, episode, isTv) =>
       isTv
         ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
         : `https://vidlink.pro/movie/${id}`,
+  },
+  {
+    id: "superembed",
+    name: "SuperEmbed",
+    getUrl: (id, season, episode, isTv) =>
+      isTv
+        ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`
+        : `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+  },
+  {
+    id: "vidsrc_pm",
+    name: "VidSrc PM",
+    getUrl: (id, season, episode, isTv) =>
+      isTv
+        ? `https://vidsrc.pm/embed/tv/${id}/${season}/${episode}`
+        : `https://vidsrc.pm/embed/movie/${id}`,
   },
 ];
 
@@ -100,32 +102,6 @@ export default function PlayerScreen({ route, navigation }) {
     };
   }, []);
 
-  const handleShouldStartLoad = (request) => {
-    const { url } = request;
-    // Allow local iframe document and safe media streaming origins
-    if (
-      url.startsWith("data:") ||
-      url.startsWith("about:") ||
-      url.startsWith("blob:") ||
-      url.includes("vidsrc") ||
-      url.includes("autoembed") ||
-      url.includes("smashy") ||
-      url.includes("vidlink")
-    ) {
-      return true;
-    }
-    // Block intent redirects, google play redirects, and external ad domains
-    if (
-      url.startsWith("intent:") ||
-      url.startsWith("market:") ||
-      url.startsWith("android-app:") ||
-      (!url.startsWith("http://") && !url.startsWith("https://"))
-    ) {
-      return false;
-    }
-    return true;
-  };
-
   const handleSwitchServer = (idx) => {
     setHasError(false);
     setIsLoading(true);
@@ -136,6 +112,21 @@ export default function PlayerScreen({ route, navigation }) {
     setCurrentEpisode(epNum);
     setShowEpisodesDrawer(false);
     setIsLoading(true);
+  };
+
+  // Allow all subframe loads (m3u8, chunk CDNs, blob URIs) but block external intent popups
+  const handleShouldStartLoad = (request) => {
+    const { url } = request;
+    if (
+      url.startsWith("intent:") ||
+      url.startsWith("market:") ||
+      url.startsWith("android-app:") ||
+      url.startsWith("snssdk") ||
+      url.startsWith("vnd.youtube:")
+    ) {
+      return false;
+    }
+    return true;
   };
 
   if (!resolvedMediaId) {
@@ -161,37 +152,6 @@ export default function PlayerScreen({ route, navigation }) {
     isTv
   );
 
-  // Sandboxed HTML wrapper with simulated referrer and responsive frame
-  const htmlWrapper = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; background-color: #000; }
-        html, body { width: 100%; height: 100%; overflow: hidden; }
-        iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
-          display: block;
-        }
-      </style>
-    </head>
-    <body>
-      <iframe 
-        src="${embedUrl}" 
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-        allowfullscreen="true"
-        webkitallowfullscreen="true"
-        mozallowfullscreen="true"
-        scrolling="no">
-      </iframe>
-    </body>
-    </html>
-  `;
-
   return (
     <View style={styles.container}>
       <StatusBar hidden />
@@ -200,9 +160,9 @@ export default function PlayerScreen({ route, navigation }) {
         {hasError ? (
           <View style={styles.fallbackOverlay}>
             <Ionicons name="cloud-offline-outline" size={46} color="#FF334B" />
-            <Text style={styles.fallbackTitle}>Playback Blocked or Offline</Text>
+            <Text style={styles.fallbackTitle}>Server Blocked or Offline</Text>
             <Text style={styles.fallbackSub}>
-              {SERVERS[activeServerIndex].name} failed to stream. Try another provider above.
+              {SERVERS[activeServerIndex].name} failed. Tap below to cycle providers.
             </Text>
             <TouchableOpacity
               style={styles.retryBtn}
@@ -211,7 +171,7 @@ export default function PlayerScreen({ route, navigation }) {
                 handleSwitchServer(next);
               }}
             >
-              <Text style={styles.retryBtnText}>Switch to Next Server</Text>
+              <Text style={styles.retryBtnText}>Try Next Provider</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -220,8 +180,12 @@ export default function PlayerScreen({ route, navigation }) {
               ref={webViewRef}
               key={`${embedUrl}-${activeServerIndex}`}
               source={{
-                html: htmlWrapper,
-                baseUrl: "https://vidsrc.icu",
+                uri: embedUrl,
+                headers: {
+                  "Referer": "https://vidsrc.net/",
+                  "User-Agent":
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                },
               }}
               style={styles.webview}
               onShouldStartLoadWithRequest={handleShouldStartLoad}
@@ -231,27 +195,32 @@ export default function PlayerScreen({ route, navigation }) {
                 setIsLoading(false);
                 setHasError(true);
               }}
+              // CRITICAL: Unblock video stream playback & storage
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              databaseEnabled={true}
+              thirdPartyCookiesEnabled={true}
+              sharedCookiesEnabled={true}
               allowsInlineMediaPlayback={true}
               mediaPlaybackRequiresUserAction={false}
               setSupportMultipleWindows={false}
               allowsFullscreenVideo={true}
               mixedContentMode="always"
               originWhitelist={["*"]}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              userAgent="Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36"
+              androidHardwareAccelerationDisabled={false}
+              userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
             />
             {isLoading ? (
               <LoadingPanel
                 message={`Connecting to ${SERVERS[activeServerIndex].name}...`}
-                subMessage={isTv ? `S${currentSeason} : E${currentEpisode} · Buffering Stream` : "Buffering Movie Stream..."}
+                subMessage={isTv ? `Buffering S${currentSeason}:E${currentEpisode}` : "Fetching stream buffers..."}
               />
             ) : null}
           </>
         )}
       </View>
 
-      {/* Top Floating Controls */}
+      {/* Floating Header Controls */}
       <SafeAreaView style={styles.topBarOverlay} pointerEvents="box-none">
         <View style={styles.leftGroup}>
           <TouchableOpacity
@@ -274,7 +243,7 @@ export default function PlayerScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Server Selectors */}
+        {/* Server Switcher */}
         <View style={styles.serverRow}>
           {SERVERS.map((server, idx) => {
             const isActive = activeServerIndex === idx;
