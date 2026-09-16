@@ -24,6 +24,7 @@ const SERVERS = [
 ];
 
 export default function PlayerScreen({ route, navigation }) {
+  const [activeServerIndex, setActiveServerIndex] = useState(0);
 
   useEffect(() => {
     async function lockLandscape() {
@@ -35,7 +36,35 @@ export default function PlayerScreen({ route, navigation }) {
     }
     lockLandscape();
 
-    return () => {
+    
+  const servers = [
+    {
+      id: "vidlink",
+      name: "VidLink",
+      getUrl: (id, season, episode, isTv) =>
+        isTv
+          ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
+          : `https://vidlink.pro/movie/${id}`,
+    },
+    {
+      id: "vidsrc_cc",
+      name: "VidSrc CC",
+      getUrl: (id, season, episode, isTv) =>
+        isTv
+          ? `https://vidsrc.cc/v2/embed/tv/${id}/${season}/${episode}`
+          : `https://vidsrc.cc/v2/embed/movie/${id}`,
+    },
+    {
+      id: "embedsu",
+      name: "EmbedSu",
+      getUrl: (id, season, episode, isTv) =>
+        isTv
+          ? `https://embed.su/embed/tv/${id}/${season}/${episode}`
+          : `https://embed.su/embed/movie/${id}`,
+    },
+  ];
+
+  return () => {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     };
   }, []);
@@ -136,6 +165,37 @@ export default function PlayerScreen({ route, navigation }) {
           style={styles.webview}
         />
 
+      {/* Top Floating Controls */}
+      <View style={styles.topBarOverlay}>
+        <TouchableOpacity style={styles.backCircle} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={20} color="#FFF" />
+        </TouchableOpacity>
+
+        {/* Server Selectors */}
+        <View style={styles.serverRow}>
+          {servers.map((s, idx) => (
+            <TouchableOpacity
+              key={s.id}
+              style={[
+                styles.serverChip,
+                activeServerIndex === idx && styles.serverChipActive
+              ]}
+              onPress={() => setActiveServerIndex(idx)}
+            >
+              <Text
+                style={[
+                  styles.serverChipText,
+                  activeServerIndex === idx && styles.serverChipTextActive
+                ]}
+              >
+                {s.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+
         {playerLoading && (
           <View style={styles.playerLoader}>
             <ActivityIndicator size="large" color="#FF334B" />
@@ -216,6 +276,49 @@ export default function PlayerScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+
+  topBarOverlay: {
+    position: "absolute",
+    top: 14,
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: 999,
+  },
+  backCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(10, 10, 14, 0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  serverRow: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "rgba(10, 10, 14, 0.65)",
+    padding: 4,
+    borderRadius: 20,
+  },
+  serverChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  serverChipActive: {
+    backgroundColor: "#FF334B",
+  },
+  serverChipText: {
+    color: "#8E8E93",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  serverChipTextActive: {
+    color: "#FFFFFF",
+  },
+
   container: { flex: 1, backgroundColor: "#0A0A0E" },
   playerContainer: {
     width: "100%",
