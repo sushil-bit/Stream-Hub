@@ -1,41 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
 import * as ScreenOrientation from "expo-screen-orientation";
+import LoadingPanel from "../components/Common/LoadingPanel";
 
 const SERVERS = [
   {
+    id: "vidsrc_pm",
+    name: "VidSrc (Primary)",
+    getUrl: (id, season, episode, isTv) =>
+      isTv
+        ? "https://vidsrc.pm/embed/tv/" + id + "/" + season + "/" + episode
+        : "https://vidsrc.pm/embed/movie/" + id,
+  },
+  {
     id: "vidlink",
-    name: "VidLink (Fast)",
+    name: "VidLink",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? "https://vidlink.pro/tv/" + id + "/" + season + "/" + episode
-        : "https://vidlink.pro/movie/" + id,
-  },
-  {
-    id: "vidsrc_cc",
-    name: "VidSrc CC",
-    getUrl: (id, season, episode, isTv) =>
-      isTv
-        ? "https://vidsrc.cc/v2/embed/tv/" + id + "/" + season + "/" + episode
-        : "https://vidsrc.cc/v2/embed/movie/" + id,
-  },
-  {
-    id: "twoembed",
-    name: "2Embed",
-    getUrl: (id, season, episode, isTv) =>
-      isTv
-        ? "https://www.2embed.cc/embedtv/" + id + "&s=" + season + "&e=" + episode
-        : "https://www.2embed.cc/embed/" + id,
+        ? "https://vidlink.pro/tv/" + id + "/" + season + "/" + episode + "?primaryColor=ff334b"
+        : "https://vidlink.pro/movie/" + id + "?primaryColor=ff334b",
   },
   {
     id: "vidsrc_xyz",
@@ -44,6 +36,14 @@ const SERVERS = [
       isTv
         ? "https://vidsrc.xyz/embed/tv?tmdb=" + id + "&season=" + season + "&episode=" + episode
         : "https://vidsrc.xyz/embed/movie?tmdb=" + id,
+  },
+  {
+    id: "twoembed",
+    name: "2Embed",
+    getUrl: (id, season, episode, isTv) =>
+      isTv
+        ? "https://www.2embed.cc/embedtv/" + id + "&s=" + season + "&e=" + episode
+        : "https://www.2embed.cc/embed/" + id,
   },
 ];
 
@@ -68,7 +68,9 @@ export default function PlayerScreen({ route, navigation }) {
   const episodeNumber = params.episodeNumber || 1;
 
   const [activeServerIndex, setActiveServerIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const webViewRef = useRef(null);
 
   useEffect(() => {
     async function lockLandscape() {
@@ -77,7 +79,7 @@ export default function PlayerScreen({ route, navigation }) {
           ScreenOrientation.OrientationLock.LANDSCAPE
         );
       } catch (err) {
-        console.warn("Orientation lock error:", err);
+        console.warn("ScreenOrientation error:", err);
       }
     }
     lockLandscape();
@@ -91,17 +93,23 @@ export default function PlayerScreen({ route, navigation }) {
 
   const handleShouldStartLoad = (request) => {
     const { url } = request;
+    // Allow internal payloads and active stream mirrors
     if (
       url.startsWith("data:") ||
       url.startsWith("about:") ||
-      url.startsWith("blob:")
+      url.startsWith("blob:") ||
+      url.includes("vidlink") ||
+      url.includes("vidsrc") ||
+      url.includes("2embed")
     ) {
       return true;
     }
+    // Block intent redirects, app store redirects, and aggressive popunder tabs
     if (
       url.startsWith("intent:") ||
       url.startsWith("market:") ||
-      url.startsWith("android-app:")
+      url.startsWith("android-app:") ||
+      (!url.startsWith("http://") && !url.startsWith("https://"))
     ) {
       return false;
     }
@@ -110,6 +118,7 @@ export default function PlayerScreen({ route, navigation }) {
 
   const handleSwitchServer = (idx) => {
     setHasError(false);
+    setIsLoading(true);
     setActiveServerIndex(idx);
   };
 
@@ -144,9 +153,9 @@ export default function PlayerScreen({ route, navigation }) {
         {hasError ? (
           <View style={styles.fallbackOverlay}>
             <Ionicons name="cloud-offline-outline" size={46} color="#FF334B" />
-            <Text style={styles.fallbackTitle}>Server Unavailable</Text>
+            <Text style={styles.fallbackTitle}>Playback Blocked or Offline</Text>
             <Text style={styles.fallbackSub}>
-              {SERVERS[activeServerIndex].name} failed to respond. Switch to another server above.
+              {SERVERS[activeServerIndex].name} failed to stream. Choose another provider above.
             </Text>
             <TouchableOpacity
               style={styles.retryBtn}
@@ -155,33 +164,50 @@ export default function PlayerScreen({ route, navigation }) {
                 handleSwitchServer(next);
               }}
             >
-              <Text style={styles.retryBtnText}>Try Next Server</Text>
+              <Text style={styles.retryBtnText}>Switch to Next Server</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <WebView
-            key={currentUrl}
-            source={{ uri: currentUrl }}
-            style={styles.webview}
-            onShouldStartLoadWithRequest={handleShouldStartLoad}
-            onError={() => setHasError(true)}
-            setSupportMultipleWindows={false}
-            allowsFullscreenVideo={true}
-            originWhitelist={["*"]}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            renderLoading={() => (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#FF334B" />
-              </View>
-            )}
-            startInLoadingState={true}
-          />
+          <>
+            <WebView
+              ref={webViewRef}
+              key={currentUrl}
+              source={{
+                uri: currentUrl,
+                headers: {
+                  Referer: "https://vidsrc.pm/",
+                  Origin: "https://vidsrc.pm",
+                },
+              }}
+              style={styles.webview}
+              onShouldStartLoadWithRequest={handleShouldStartLoad}
+              onLoadStart={() => setIsLoading(true)}
+              onLoadEnd={() => setIsLoading(false)}
+              onError={() => {
+                setIsLoading(false);
+                setHasError(true);
+              }}
+              allowsInlineMediaPlayback={true}
+              mediaPlaybackRequiresUserAction={false}
+              setSupportMultipleWindows={false}
+              allowsFullscreenVideo={true}
+              mixedContentMode="always"
+              originWhitelist={["*"]}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            />
+            {isLoading ? (
+              <LoadingPanel
+                message={"Buffering " + SERVERS[activeServerIndex].name}
+                subMessage="Bypassing ads & fetching media stream..."
+              />
+            ) : null}
+          </>
         )}
       </View>
 
-      {/* Floating Top Control Overlay */}
+      {/* Floating Header Controls */}
       <SafeAreaView style={styles.topBarOverlay} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.backCircle}
@@ -229,12 +255,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000000",
   },
-  loadingContainer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#0A0A0E",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   fallbackOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#0A0A0E",
@@ -242,6 +262,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 30,
     gap: 10,
+    zIndex: 60,
   },
   fallbackTitle: {
     color: "#FFFFFF",
@@ -256,7 +277,7 @@ const styles = StyleSheet.create({
   retryBtn: {
     marginTop: 10,
     backgroundColor: "#FF334B",
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingVertical: 10,
     borderRadius: 20,
   },
@@ -295,8 +316,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.12)",
   },
   serverChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 16,
   },
   serverChipActive: {

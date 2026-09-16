@@ -1,3 +1,4 @@
+import LoadingPanel from "../components/Common/LoadingPanel";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
