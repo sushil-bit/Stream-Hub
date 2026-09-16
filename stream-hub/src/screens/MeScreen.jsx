@@ -7,14 +7,17 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CoffeeSupportModal from "../components/CoffeeSupportModal";
+import SettingsScreen from "./SettingsScreen";
 
 export default function MeScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [showCoffeeModal, setShowCoffeeModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [counts, setCounts] = useState({
     watchlist: 0,
     liked: 0,
@@ -59,155 +62,169 @@ export default function MeScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.headerTitle}>Account</Text>
+    <View style={styles.root}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.headerTitle}>Account</Text>
 
-      {/* User Card */}
-      <View style={styles.profileCard}>
-        <Image
-          source={{
-            uri:
-              profile?.avatar ||
-              "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
-          }}
-          style={styles.avatar}
-        />
-        <View style={styles.profileDetails}>
-          <Text style={styles.username}>{profile?.username || "Stream-Hub Member"}</Text>
-          <Text style={styles.email}>{profile?.email || "streamer@streamhub.io"}</Text>
-          <View style={styles.badgeRow}>
-            <View style={styles.providerBadge}>
-              <Text style={styles.providerText}>
-                {(profile?.provider || "DIRECT").toUpperCase()}
-              </Text>
+        {/* User Card */}
+        <View style={styles.profileCard}>
+          <Image
+            source={{
+              uri:
+                profile?.avatar ||
+                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
+            }}
+            style={styles.avatar}
+          />
+          <View style={styles.profileDetails}>
+            <Text style={styles.username}>{profile?.username || "Stream-Hub Member"}</Text>
+            <Text style={styles.email}>{profile?.email || "streamer@streamhub.io"}</Text>
+            <View style={styles.badgeRow}>
+              <View style={styles.providerBadge}>
+                <Text style={styles.providerText}>
+                  {(profile?.provider || "DIRECT").toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.proBadge}>
+                <Ionicons name="sparkles" size={10} color="#FFB800" />
+                <Text style={styles.proText}>VIP MEMBER</Text>
+              </View>
             </View>
-            <View style={styles.proBadge}>
-              <Ionicons name="sparkles" size={10} color="#FFB800" />
-              <Text style={styles.proText}>VIP MEMBER</Text>
+          </View>
+        </View>
+
+        {/* Metric Counters */}
+        <View style={styles.statsRow}>
+          <TouchableOpacity
+            style={styles.statBox}
+            onPress={() => navigation.navigate("Details")}
+          >
+            <Text style={styles.statCount}>{counts.watchlist}</Text>
+            <Text style={styles.statLabel}>Watchlist</Text>
+          </TouchableOpacity>
+          <View style={styles.statDivider} />
+          <TouchableOpacity
+            style={styles.statBox}
+            onPress={() => Alert.alert("Liked", `You have liked ${counts.liked} titles.`)}
+          >
+            <Text style={styles.statCount}>{counts.liked}</Text>
+            <Text style={styles.statLabel}>Liked</Text>
+          </TouchableOpacity>
+          <View style={styles.statDivider} />
+          <TouchableOpacity
+            style={styles.statBox}
+            onPress={() => Alert.alert("Comments", `You have posted ${counts.comments} comments.`)}
+          >
+            <Text style={styles.statCount}>{counts.comments}</Text>
+            <Text style={styles.statLabel}>Comments</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Storage Meter */}
+        <View style={styles.storageCard}>
+          <View style={styles.storageHeader}>
+            <Text style={styles.storageTitle}>Offline Storage</Text>
+            <Text style={styles.storageValue}>1.4 GB / 64 GB</Text>
+          </View>
+          <View style={styles.storageTrack}>
+            <View style={[styles.storageBar, { width: "12%" }]} />
+          </View>
+        </View>
+
+        {/* Media Group */}
+        <Text style={styles.sectionHeader}>LIBRARY</Text>
+        <View style={styles.menuGroup}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate("Details")}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: "#FFB8001F" }]}>
+              <Ionicons name="bookmark" size={18} color="#FFB800" />
             </View>
-          </View>
+            <Text style={styles.menuLabel}>My Watchlist</Text>
+            <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, styles.lastItem]}
+            onPress={() => navigation.navigate("Downloads")}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: "#10B9811F" }]}>
+              <Ionicons name="download" size={18} color="#10B981" />
+            </View>
+            <Text style={styles.menuLabel}>Downloads & Offline Media</Text>
+            <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Metric Counters */}
-      <View style={styles.statsRow}>
-        <TouchableOpacity
-          style={styles.statBox}
-          onPress={() => navigation.navigate("Details")}
-        >
-          <Text style={styles.statCount}>{counts.watchlist}</Text>
-          <Text style={styles.statLabel}>Watchlist</Text>
-        </TouchableOpacity>
-        <View style={styles.statDivider} />
-        <TouchableOpacity
-          style={styles.statBox}
-          onPress={() => Alert.alert("Liked", `You have liked ${counts.liked} titles.`)}
-        >
-          <Text style={styles.statCount}>{counts.liked}</Text>
-          <Text style={styles.statLabel}>Liked</Text>
-        </TouchableOpacity>
-        <View style={styles.statDivider} />
-        <TouchableOpacity
-          style={styles.statBox}
-          onPress={() => Alert.alert("Comments", `You have posted ${counts.comments} comments.`)}
-        >
-          <Text style={styles.statCount}>{counts.comments}</Text>
-          <Text style={styles.statLabel}>Comments</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Settings & Support */}
+        <Text style={styles.sectionHeader}>PREFERENCES & SUPPORT</Text>
+        <View style={styles.menuGroup}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => setShowSettingsModal(true)}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: "#8B5CF61F" }]}>
+              <Ionicons name="settings-sharp" size={18} color="#8B5CF6" />
+            </View>
+            <Text style={styles.menuLabel}>Settings</Text>
+            <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
+          </TouchableOpacity>
 
-      {/* Storage Meter */}
-      <View style={styles.storageCard}>
-        <View style={styles.storageHeader}>
-          <Text style={styles.storageTitle}>Offline Storage</Text>
-          <Text style={styles.storageValue}>1.4 GB / 64 GB</Text>
+          <TouchableOpacity
+            style={[styles.menuItem, styles.lastItem]}
+            onPress={() => setShowCoffeeModal(true)}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: "#FFB8001F" }]}>
+              <Ionicons name="cafe" size={18} color="#FFB800" />
+            </View>
+            <Text style={styles.menuLabel}>Buy Me a Coffee</Text>
+            <Ionicons name="heart-outline" size={16} color="#FFB800" />
+          </TouchableOpacity>
         </View>
-        <View style={styles.storageTrack}>
-          <View style={[styles.storageBar, { width: "12%" }]} />
+
+        {/* Logout */}
+        <View style={[styles.menuGroup, { marginTop: 18 }]}>
+          <TouchableOpacity
+            style={[styles.menuItem, styles.lastItem]}
+            onPress={handleLogout}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: "#FF334B1F" }]}>
+              <Ionicons name="log-out-outline" size={18} color="#FF334B" />
+            </View>
+            <Text style={[styles.menuLabel, { color: "#FF334B", fontWeight: "600" }]}>
+              Log Out
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
+          </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Media Group */}
-      <Text style={styles.sectionHeader}>LIBRARY</Text>
-      <View style={styles.menuGroup}>
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => navigation.navigate("Details")}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: "#FFB8001F" }]}>
-            <Ionicons name="bookmark" size={18} color="#FFB800" />
-          </View>
-          <Text style={styles.menuLabel}>My Watchlist</Text>
-          <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.menuItem, styles.lastItem]}
-          onPress={() => navigation.navigate("Downloads")}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: "#10B9811F" }]}>
-            <Ionicons name="download" size={18} color="#10B981" />
-          </View>
-          <Text style={styles.menuLabel}>Downloads & Offline Media</Text>
-          <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Settings & Support */}
-      <Text style={styles.sectionHeader}>PREFERENCES & SUPPORT</Text>
-      <View style={styles.menuGroup}>
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => navigation.navigate("Settings")}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: "#8B5CF61F" }]}>
-            <Ionicons name="settings-sharp" size={18} color="#8B5CF6" />
-          </View>
-          <Text style={styles.menuLabel}>Settings</Text>
-          <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.menuItem, styles.lastItem]}
-          onPress={() => setShowCoffeeModal(true)}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: "#FFB8001F" }]}>
-            <Ionicons name="cafe" size={18} color="#FFB800" />
-          </View>
-          <Text style={styles.menuLabel}>Buy Me a Coffee</Text>
-          <Ionicons name="heart-outline" size={16} color="#FFB800" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Logout */}
-      <View style={[styles.menuGroup, { marginTop: 18 }]}>
-        <TouchableOpacity
-          style={[styles.menuItem, styles.lastItem]}
-          onPress={handleLogout}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: "#FF334B1F" }]}>
-            <Ionicons name="log-out-outline" size={18} color="#FF334B" />
-          </View>
-          <Text style={[styles.menuLabel, { color: "#FF334B", fontWeight: "600" }]}>
-            Log Out
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color="#7E7E8A" />
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {/* Buy Me A Coffee Dialog */}
       <CoffeeSupportModal
         visible={showCoffeeModal}
         onClose={() => setShowCoffeeModal(false)}
       />
-    </ScrollView>
+
+      {/* Settings Screen Full View */}
+      <Modal
+        visible={showSettingsModal}
+        animationType="slide"
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <SettingsScreen onClose={() => setShowSettingsModal(false)} />
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
     backgroundColor: "#0D0C13",
+  },
+  container: {
+    flex: 1,
   },
   content: {
     paddingTop: 54,
