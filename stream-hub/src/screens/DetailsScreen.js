@@ -98,6 +98,27 @@ export default function DetailsScreen({ route, navigation }) {
 
 
   useEffect(() => {
+    if (isTv && media?.id) {
+      const fetchSeasonEpisodes = async () => {
+        setLoadingEpisodes(true);
+        try {
+          const key = 'fb2e44c3e763e38d9214c5266987acf3';
+          const res = await fetch(`https://api.themoviedb.org/3/tv/${media.id}/season/${selectedSeason}?api_key=${key}`);
+          const data = await res.json();
+          if (data && data.episodes) {
+            setEpisodes(data.episodes);
+          }
+        } catch (err) {
+          console.warn('Failed to load season episodes:', err);
+        } finally {
+          setLoadingEpisodes(false);
+        }
+      };
+      fetchSeasonEpisodes();
+    }
+  }, [selectedSeason, media?.id, isTv]);
+
+  useEffect(() => {
     checkBookmark();
     if (isTv && media && media.id) {
       loadTvMetadata();
