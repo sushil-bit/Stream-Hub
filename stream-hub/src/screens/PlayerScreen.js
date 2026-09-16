@@ -42,17 +42,19 @@ const SERVERS = [
 export default function PlayerScreen({ route, navigation }) {
   const params = route?.params || {};
   
-  // Resolve mediaId across different screen parameter patterns
+  // Extract media object whether passed as { media }, { item }, or top-level params
+  const mediaObj = params.media || params.item || params;
+
   const resolvedMediaId =
+    mediaObj.id ||
     params.mediaId ||
     params.id ||
-    params.item?.id ||
     params.tmdbId;
 
   const isTv = Boolean(
+    mediaObj.media_type === "tv" ||
     params.isTv ||
     params.mediaType === "tv" ||
-    params.item?.media_type === "tv" ||
     params.seasonNumber
   );
 
@@ -99,13 +101,15 @@ export default function PlayerScreen({ route, navigation }) {
     return true;
   };
 
-  // If no ID could be resolved, show a graceful fallback rather than firing an invalid URL
   if (!resolvedMediaId) {
     return (
       <View style={styles.errorContainer}>
         <StatusBar hidden />
         <Ionicons name="alert-circle-outline" size={48} color="#FF334B" />
         <Text style={styles.errorText}>Missing Media Identifier</Text>
+        <Text style={styles.errorSubText}>
+          Params: {JSON.stringify(params)}
+        </Text>
         <TouchableOpacity
           style={styles.errorButton}
           onPress={() => navigation.goBack()}
@@ -129,6 +133,7 @@ export default function PlayerScreen({ route, navigation }) {
 
       <View style={styles.playerContainer}>
         <WebView
+          key={currentUrl}
           source={{ uri: currentUrl }}
           style={styles.webview}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
@@ -250,11 +255,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 14,
+    paddingHorizontal: 20,
   },
   errorText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  errorSubText: {
+    color: "#8E8E93",
+    fontSize: 11,
+    textAlign: "center",
   },
   errorButton: {
     backgroundColor: "#1C1C26",
