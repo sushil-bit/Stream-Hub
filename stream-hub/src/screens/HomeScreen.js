@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import LoadingPanel from "../components/Common/LoadingPanel";
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -27,18 +28,7 @@ import { HomeSkeleton } from "../components/Common/SkeletonLoader";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
-export default function HomeScreen({
-  useEffect(() => {
-    AsyncStorage.getItem("@streamhub_default_landing").then((landing) => {
-      if (landing === "movie" || landing === "tv") {
-        if (typeof setSelectedCategory === "function") {
-          setSelectedCategory(landing);
-        } else if (typeof setActiveTab === "function") {
-          setActiveTab(landing);
-        }
-      }
-    });
-  }, []);
+export default function HomeScreen({ navigation }) {
  navigation }) {
   const [trending, setTrending] = useState([]);
   const [anime, setAnime] = useState([]);
