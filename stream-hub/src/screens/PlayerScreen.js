@@ -17,24 +17,24 @@ const SERVERS = [
     name: "VidLink",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? \`https://vidlink.pro/tv/\${id}/\${season}/\${episode}\`
-        : \`https://vidlink.pro/movie/\${id}\`,
+        ? "https://vidlink.pro/tv/" + id + "/" + season + "/" + episode
+        : "https://vidlink.pro/movie/" + id,
   },
   {
     id: "vidsrc_cc",
     name: "VidSrc CC",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? \`https://vidsrc.cc/v2/embed/tv/\${id}/\${season}/\${episode}\`
-        : \`https://vidsrc.cc/v2/embed/movie/\${id}\`,
+        ? "https://vidsrc.cc/v2/embed/tv/" + id + "/" + season + "/" + episode
+        : "https://vidsrc.cc/v2/embed/movie/" + id,
   },
   {
     id: "embedsu",
     name: "EmbedSu",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? \`https://embed.su/embed/tv/\${id}/\${season}/\${episode}\`
-        : \`https://embed.su/embed/movie/\${id}\`,
+        ? "https://embed.su/embed/tv/" + id + "/" + season + "/" + episode
+        : "https://embed.su/embed/movie/" + id,
   },
 ];
 
@@ -97,8 +97,7 @@ export default function PlayerScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      
-      {/* Video Runtime */}
+
       <View style={styles.playerContainer}>
         <WebView
           source={{ uri: currentUrl }}
@@ -112,7 +111,6 @@ export default function PlayerScreen({ route, navigation }) {
         />
       </View>
 
-      {/* Floating Header Controls */}
       <SafeAreaView style={styles.topBarOverlay} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.backCircle}
