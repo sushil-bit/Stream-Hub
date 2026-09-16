@@ -56,31 +56,33 @@ export default function DetailsScreen({ route, navigation }) {
   };
   const [extraData, setExtraData] = useState(null);
 
+  
   const fetchMediaDetailsExtra = async (type, id) => {
-    if (!id || id === "undefined") {
-      console.warn("fetchMediaDetailsExtra skipped: missing valid id", { type, id });
-      return;
-    }
-
+    if (!id || id === "undefined") return;
     try {
       const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
-      const endpoint = type === "tv" ? "tv" : "movie";
-
-      const detailsUrl = `https://api.themoviedb.org/3/${endpoint}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,recommendations`;
-      const res = await fetch(detailsUrl);
+      const mediaType = (type === "tv" || type === "series") ? "tv" : "movie";
       
-      const text = await res.text();
-      if (!text.startsWith("{") && !text.startsWith("[")) {
-        console.warn("fetchMediaDetailsExtra non-JSON response:", text.slice(0, 100));
-        return;
-      }
-
-      const data = JSON.parse(text);
-      setExtraData(data);
+      const res = await fetch(
+        `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,recommendations`
+      );
+      
+      const data = await res.json();
+      
+      // Instantly inject credits into extraData
+      setExtraData(prev => ({
+        ...(prev || {}),
+        ...data,
+        credits: {
+          cast: data?.credits?.cast || [],
+          crew: data?.credits?.crew || [],
+        },
+      }));
     } catch (e) {
-      console.warn("Error fetching media extras:", e);
+      console.warn("Unified media fetch error:", e);
     }
   };
+
   console.log('[DEBUG Component Imports]', {
     CastRow: typeof CastRow,
     RecommendationRow: typeof RecommendationRow,
