@@ -43,3 +43,5 @@ const styles = StyleSheet.create({
   actorName: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
   characterName: { color: '#888', fontSize: 10, textAlign: 'center' },
 });
+
+export default CastRow;

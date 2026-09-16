@@ -49,3 +49,5 @@ const styles = StyleSheet.create({
   poster: { width: 110, height: 165, borderRadius: 6, backgroundColor: '#222' },
   title: { color: '#ddd', fontSize: 12, marginTop: 6 },
 });
+
+export default RecommendationRow;
