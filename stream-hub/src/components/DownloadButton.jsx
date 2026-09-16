@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { saveDownloadRecord, removeDownloadRecord } from '../../services/downloadManager';
+import { saveDownloadRecord, removeDownloadRecord } from '../services/downloadManager';
 
 export default function DownloadButton({ 
   itemKey, 
