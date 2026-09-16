@@ -534,7 +534,7 @@ export default function DetailsScreen({ route, navigation }) {
       )}
 
       <RecommendationRow 
-          items={extraData.recommendations} 
+          items={extraData?.recommendations?.results || extraData?.recommendations || []} 
           type={isTv ? 'tv' : 'movie'} 
           navigation={navigation} 
         />
