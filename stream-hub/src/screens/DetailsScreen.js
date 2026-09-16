@@ -544,8 +544,7 @@ export default function DetailsScreen({ route, navigation }) {
                         </Text>
                       ) : null}
                     </View>
-                  </TouchableOpacity>
-                  <DownloadButton
+                    <DownloadButton
                     itemKey={`${media?.id}_s${selectedSeason}_e${epNum}`}
                     title={`${media?.name || media?.title} - S${selectedSeason}E${epNum}`}
                     mediaType="tv"
@@ -554,6 +553,7 @@ export default function DetailsScreen({ route, navigation }) {
                     isDownloaded={!!downloadMap[`${media?.id}_s${selectedSeason}_e${epNum}`]}
                     onStatusChange={handleDownloadStatus}
                   />
+                </TouchableOpacity>
                 );
               })}
             </View>
