@@ -1,3 +1,4 @@
+import DownloadConfigModal from '../components/DownloadConfigModal.jsx';
 import DownloadButton from '../components/DownloadButton.jsx';
 import { getDownloads } from '../services/downloadManager';
 import React, { useState, useEffect } from 'react';
@@ -97,6 +98,7 @@ export default function DetailsScreen({ route, navigation }) {
   const [seasonModalVisible, setSeasonModalVisible] = useState(false);
   const [selectedActor, setSelectedActor] = useState(null);
   const [downloadMap, setDownloadMap] = useState({});
+  const [downloadConfigVisible, setDownloadConfigVisible] = useState(false);
 
   useEffect(() => {
     getDownloads().then((map) => setDownloadMap(map || {}));
@@ -714,11 +716,37 @@ export default function DetailsScreen({ route, navigation }) {
       </Modal>
 
 </ScrollView>
-      </View>
-    );
-  }
-
-  const styles = StyleSheet.create({
+      <DownloadConfigModal
+        visible={downloadConfigVisible}
+        onClose={() => setDownloadConfigVisible(false)}
+        media={media}
+        season={selectedSeason}
+        episodes={episodes || []}
+        onDownloadStarted={() => {
+          getDownloads().then((map) => setDownloadMap(map || {}));
+        }}
+      />
+    </View>
+  );
+}
+const styles = StyleSheet.create({
+  openDownloadConfigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#222230',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#36364A',
+    marginLeft: 10,
+  },
+  openDownloadConfigText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   episodeGridCardWrapper: {
     width: '23%',
     position: 'relative',
