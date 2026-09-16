@@ -107,13 +107,29 @@ export default function DetailsScreen({ route, navigation }) {
   }, [media]);
 
   const loadExtraDetails = async () => {
-    console.log('[DEBUG Details] Loading extras for:', media?.id, 'isTv:', isTv);
+    if (!media?.id) return;
     setLoadingExtras(true);
     try {
       const type = isTv ? 'tv' : 'movie';
-      const data = await (type, media.id);
-      console.log('[DEBUG Details] Received extra data:', JSON.stringify(data)?.slice(0, 100));
-    setExtraData(data);
+      const key = 'fb2e44c3e763e38d9214c5266987acf3';
+
+      const [recsRes, credsRes] = await Promise.allSettled([
+        fetch(`https://api.themoviedb.org/3/${type}/${media.id}/recommendations?api_key=${key}&page=1`),
+        fetch(`https://api.themoviedb.org/3/${type}/${media.id}/credits?api_key=${key}`)
+      ]);
+
+      const recommendations = recsRes.status === 'fulfilled'
+        ? (await recsRes.value.json()).results || []
+        : [];
+
+      const credits = credsRes.status === 'fulfilled'
+        ? await credsRes.value.json()
+        : { cast: [], crew: [] };
+
+      const directors = credits.crew ? credits.crew.filter(c => c.job === 'Director') : [];
+      const topCast = credits.cast ? credits.cast.slice(0, 15) : [];
+
+      setExtraData({ recommendations, topCast, directors });
     } catch (err) {
       console.warn('Failed to load extra details:', err);
     } finally {
