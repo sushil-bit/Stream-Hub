@@ -245,6 +245,17 @@ export default function DetailsScreen({ route, navigation }) {
     });
   };
 
+  
+  console.log('--- COMPONENT RUNTIME CHECK ---');
+  console.log('SafeAreaView:', typeof SafeAreaView);
+  console.log('LinearGradient:', typeof LinearGradient);
+  console.log('Ionicons:', typeof Ionicons);
+  console.log('Feather:', typeof Feather);
+  console.log('CastRow:', typeof CastRow);
+  console.log('RecommendationRow:', typeof RecommendationRow);
+  console.log('Modal:', typeof Modal);
+  console.log('-------------------------------');
+
   return (
     <View style={styles.container}>
       <StatusBar
