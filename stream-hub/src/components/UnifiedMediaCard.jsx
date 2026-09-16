@@ -10,9 +10,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
-// Exactly 3 items per row with 12px margin and 8px gutter
 const CARD_WIDTH = (width - 24 - 16) / 3;
-const CARD_HEIGHT = CARD_WIDTH * 1.5;
+const CARD_HEIGHT = CARD_WIDTH * 1.48;
 
 const UnifiedMediaCard = memo(({ item, onPress }) => {
   if (!item) return null;
@@ -25,12 +24,16 @@ const UnifiedMediaCard = memo(({ item, onPress }) => {
     >
       <View style={styles.posterWrapper}>
         <Image
-          source={{ uri: item.poster }}
+          source={{
+            uri:
+              item.poster ||
+              "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=500",
+          }}
           style={styles.poster}
           resizeMode="cover"
         />
 
-        {/* Source Badge (Anime vs TMDB type) */}
+        {/* Source Badge */}
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
             {item.source === "jikan"
@@ -42,9 +45,9 @@ const UnifiedMediaCard = memo(({ item, onPress }) => {
         </View>
 
         {/* Rating Overlay */}
-        {item.rating !== "N/A" && (
+        {item.rating && item.rating !== "N/A" && (
           <View style={styles.ratingBadge}>
-            <Ionicons name="star" size={10} color="#FFB800" />
+            <Ionicons name="star" size={9} color="#FFB800" />
             <Text style={styles.ratingText}>{item.rating}</Text>
           </View>
         )}
@@ -72,7 +75,7 @@ export default UnifiedMediaCard;
 const styles = StyleSheet.create({
   cardContainer: {
     width: CARD_WIDTH,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   posterWrapper: {
     width: CARD_WIDTH,
@@ -88,28 +91,28 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: "absolute",
-    top: 6,
-    left: 6,
-    backgroundColor: "rgba(13, 12, 19, 0.8)",
+    top: 5,
+    left: 5,
+    backgroundColor: "rgba(13, 12, 19, 0.82)",
     paddingVertical: 2,
     paddingHorizontal: 5,
     borderRadius: 4,
     borderWidth: 0.5,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
   badgeText: {
     color: "#DDDDE8",
-    fontSize: 8.5,
-    fontWeight: "700",
+    fontSize: 8,
+    fontWeight: "800",
     letterSpacing: 0.4,
   },
   ratingBadge: {
     position: "absolute",
-    bottom: 6,
-    right: 6,
+    bottom: 5,
+    right: 5,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(13, 12, 19, 0.85)",
+    backgroundColor: "rgba(13, 12, 19, 0.88)",
     paddingVertical: 2,
     paddingHorizontal: 5,
     borderRadius: 4,
@@ -133,7 +136,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     color: "#7E7E8A",
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: "500",
   },
   bullet: {
