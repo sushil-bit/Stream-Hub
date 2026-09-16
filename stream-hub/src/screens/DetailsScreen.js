@@ -387,7 +387,7 @@ export default function DetailsScreen({ route, navigation }) {
           </View>
 
           {/* Seasons & Episodes Section (Only rendered for TV Shows & Anime) */}
-          <CastRow cast={extraData.credits.cast} onSelectActor={handleActorPress} />
+          <CastRow cast={extraData?.credits?.cast || []} onSelectActor={handleActorPress} />
       {isTv && (
         <View style={styles.tvSectionContainer}>
           {/* Seasons Header + Layout Mode Toggle (Dropdown vs Slideable) */}
