@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  ScrollView,
   FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,36 +15,36 @@ import LoadingPanel from "../components/Common/LoadingPanel";
 
 const SERVERS = [
   {
-    id: "vidsrc_cc",
-    name: "VidSrc CC",
+    id: "vidsrc_icu",
+    name: "VidSrc ICU",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? `https://vidsrc.cc/v2/embed/tv/${id}/${season}/${episode}`
-        : `https://vidsrc.cc/v2/embed/movie/${id}`,
+        ? `https://vidsrc.icu/embed/tv/${id}/${season}/${episode}`
+        : `https://vidsrc.icu/embed/movie/${id}`,
+  },
+  {
+    id: "autoembed",
+    name: "AutoEmbed",
+    getUrl: (id, season, episode, isTv) =>
+      isTv
+        ? `https://player.autoembed.cc/embed/tv/${id}/${season}/${episode}`
+        : `https://player.autoembed.cc/embed/movie/${id}`,
+  },
+  {
+    id: "smashystream",
+    name: "SmashyStream",
+    getUrl: (id, season, episode, isTv) =>
+      isTv
+        ? `https://player.smashy.stream/tv/${id}?s=${season}&e=${episode}`
+        : `https://player.smashy.stream/movie/${id}`,
   },
   {
     id: "vidlink",
-    name: "VidLink",
+    name: "VidLink PRO",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? `https://vidlink.pro/tv/${id}/${season}/${episode}?primaryColor=ff334b`
-        : `https://vidlink.pro/movie/${id}?primaryColor=ff334b`,
-  },
-  {
-    id: "multiembed",
-    name: "MultiEmbed",
-    getUrl: (id, season, episode, isTv) =>
-      isTv
-        ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`
-        : `https://multiembed.mov/?video_id=${id}&tmdb=1`,
-  },
-  {
-    id: "twoembed",
-    name: "2Embed",
-    getUrl: (id, season, episode, isTv) =>
-      isTv
-        ? `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`
-        : `https://www.2embed.cc/embed/${id}`,
+        ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
+        : `https://vidlink.pro/movie/${id}`,
   },
 ];
 
@@ -75,7 +74,6 @@ export default function PlayerScreen({ route, navigation }) {
   const [hasError, setHasError] = useState(false);
   const webViewRef = useRef(null);
 
-  // Generate 24 placeholder episodes if not explicitly passed from details
   const episodesList = params.episodes?.length
     ? params.episodes
     : Array.from({ length: 24 }, (_, i) => ({
@@ -104,19 +102,19 @@ export default function PlayerScreen({ route, navigation }) {
 
   const handleShouldStartLoad = (request) => {
     const { url } = request;
-    // Permit safe internal origins & active media CDNs
+    // Allow local iframe document and safe media streaming origins
     if (
       url.startsWith("data:") ||
       url.startsWith("about:") ||
       url.startsWith("blob:") ||
-      url.includes("vidlink") ||
       url.includes("vidsrc") ||
-      url.includes("multiembed") ||
-      url.includes("2embed")
+      url.includes("autoembed") ||
+      url.includes("smashy") ||
+      url.includes("vidlink")
     ) {
       return true;
     }
-    // Block popup ads, intent schemes, external apps
+    // Block intent redirects, google play redirects, and external ad domains
     if (
       url.startsWith("intent:") ||
       url.startsWith("market:") ||
@@ -156,12 +154,43 @@ export default function PlayerScreen({ route, navigation }) {
     );
   }
 
-  const currentUrl = SERVERS[activeServerIndex].getUrl(
+  const embedUrl = SERVERS[activeServerIndex].getUrl(
     resolvedMediaId,
     currentSeason,
     currentEpisode,
     isTv
   );
+
+  // Sandboxed HTML wrapper with simulated referrer and responsive frame
+  const htmlWrapper = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; background-color: #000; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        iframe {
+          width: 100%;
+          height: 100%;
+          border: none;
+          display: block;
+        }
+      </style>
+    </head>
+    <body>
+      <iframe 
+        src="${embedUrl}" 
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowfullscreen="true"
+        webkitallowfullscreen="true"
+        mozallowfullscreen="true"
+        scrolling="no">
+      </iframe>
+    </body>
+    </html>
+  `;
 
   return (
     <View style={styles.container}>
@@ -171,9 +200,9 @@ export default function PlayerScreen({ route, navigation }) {
         {hasError ? (
           <View style={styles.fallbackOverlay}>
             <Ionicons name="cloud-offline-outline" size={46} color="#FF334B" />
-            <Text style={styles.fallbackTitle}>Server Blocked or Offline</Text>
+            <Text style={styles.fallbackTitle}>Playback Blocked or Offline</Text>
             <Text style={styles.fallbackSub}>
-              {SERVERS[activeServerIndex].name} failed. Choose an alternative mirror above.
+              {SERVERS[activeServerIndex].name} failed to stream. Try another provider above.
             </Text>
             <TouchableOpacity
               style={styles.retryBtn}
@@ -189,13 +218,10 @@ export default function PlayerScreen({ route, navigation }) {
           <>
             <WebView
               ref={webViewRef}
-              key={currentUrl}
+              key={`${embedUrl}-${activeServerIndex}`}
               source={{
-                uri: currentUrl,
-                headers: {
-                  Referer: "https://vidsrc.cc/",
-                  Origin: "https://vidsrc.cc",
-                },
+                html: htmlWrapper,
+                baseUrl: "https://vidsrc.icu",
               }}
               style={styles.webview}
               onShouldStartLoadWithRequest={handleShouldStartLoad}
@@ -213,7 +239,7 @@ export default function PlayerScreen({ route, navigation }) {
               originWhitelist={["*"]}
               javaScriptEnabled={true}
               domStorageEnabled={true}
-              userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+              userAgent="Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36"
             />
             {isLoading ? (
               <LoadingPanel
@@ -225,7 +251,7 @@ export default function PlayerScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* Floating Top Controls */}
+      {/* Top Floating Controls */}
       <SafeAreaView style={styles.topBarOverlay} pointerEvents="box-none">
         <View style={styles.leftGroup}>
           <TouchableOpacity
@@ -272,7 +298,7 @@ export default function PlayerScreen({ route, navigation }) {
         </View>
       </SafeAreaView>
 
-      {/* Horizontal Drawer for Quick Episode Selection */}
+      {/* Horizontal Episode Picker */}
       {isTv && showEpisodesDrawer && (
         <View style={styles.drawerContainer}>
           <View style={styles.drawerHeader}>
