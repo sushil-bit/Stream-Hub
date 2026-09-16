@@ -14,7 +14,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { IMAGE_BASE_URL, fetchTvDetails, fetchSeasonDetails } from "../services/api";
+import {
+  IMAGE_BASE_URL,
+  fetchTvDetails,
+  fetchSeasonDetails,
+} from "../services/api";
 import { getWatchlist, toggleWatchlist } from "../services/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -23,7 +27,8 @@ const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
 export default function DetailsScreen({ route, navigation }) {
   const media = route?.params?.media || {};
-  const isTv = media.media_type === "tv" || media.isAnime || !!media.first_air_date;
+  const isTv =
+    media.media_type === "tv" || media.isAnime || !!media.first_air_date;
 
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [seasons, setSeasons] = useState([]);
@@ -46,8 +51,9 @@ export default function DetailsScreen({ route, navigation }) {
   const posterUri = media.poster_path?.startsWith("http")
     ? media.poster_path
     : media.poster_path
-    ? IMAGE_URL + media.poster_path
-    : media.images?.jpg?.large_image_url || "https://via.placeholder.com/500x750";
+      ? IMAGE_URL + media.poster_path
+      : media.images?.jpg?.large_image_url ||
+        "https://via.placeholder.com/500x750";
 
   const backdropUri = media.backdrop_path
     ? IMAGE_URL + media.backdrop_path
@@ -134,9 +140,16 @@ export default function DetailsScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar
+        barStyle="light-content"
+        translucent
+        backgroundColor="transparent"
+      />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 130 }}
+      >
         {/* Backdrop Image */}
         <View style={styles.heroWrapper}>
           <Image source={{ uri: backdropUri }} style={styles.backdropImage} />
@@ -147,10 +160,16 @@ export default function DetailsScreen({ route, navigation }) {
           />
 
           <SafeAreaView style={styles.headerBar}>
-            <TouchableOpacity style={styles.iconCircle} onPress={() => navigation.goBack()}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={() => navigation.goBack()}
+            >
               <Ionicons name="chevron-back" size={22} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconCircle} onPress={handleBookmarkToggle}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={handleBookmarkToggle}
+            >
               <Ionicons
                 name={isBookmarked ? "bookmark" : "bookmark-outline"}
                 size={20}
@@ -194,14 +213,22 @@ export default function DetailsScreen({ route, navigation }) {
                 end={{ x: 1, y: 0 }}
                 style={styles.playGradient}
               >
-                <Ionicons name="play" size={20} color="#FFF" style={{ marginRight: 6 }} />
+                <Ionicons
+                  name="play"
+                  size={20}
+                  color="#FFF"
+                  style={{ marginRight: 6 }}
+                />
                 <Text style={styles.playText}>
                   {isTv ? "Watch S" + selectedSeason + " E1" : "Play Now"}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.bookmarkBtn} onPress={handleBookmarkToggle}>
+            <TouchableOpacity
+              style={styles.bookmarkBtn}
+              onPress={handleBookmarkToggle}
+            >
               <Feather
                 name={isBookmarked ? "check" : "plus"}
                 size={22}
@@ -235,10 +262,18 @@ export default function DetailsScreen({ route, navigation }) {
                     return (
                       <TouchableOpacity
                         key={"season-" + s.season_number}
-                        style={[styles.seasonChip, isSelected && styles.seasonChipActive]}
+                        style={[
+                          styles.seasonChip,
+                          isSelected && styles.seasonChipActive,
+                        ]}
                         onPress={() => handleSeasonSelect(s.season_number)}
                       >
-                        <Text style={[styles.seasonChipText, isSelected && styles.seasonChipTextActive]}>
+                        <Text
+                          style={[
+                            styles.seasonChipText,
+                            isSelected && styles.seasonChipTextActive,
+                          ]}
+                        >
                           {s.name || "Season " + s.season_number}
                         </Text>
                       </TouchableOpacity>
@@ -263,21 +298,29 @@ export default function DetailsScreen({ route, navigation }) {
                         key={"ep-" + ep.id}
                         style={styles.episodeCard}
                         activeOpacity={0.8}
-                        onPress={() => launchPlayer(selectedSeason, ep.episode_number)}
+                        onPress={() =>
+                          launchPlayer(selectedSeason, ep.episode_number)
+                        }
                       >
                         <View style={styles.thumbWrapper}>
-                          <Image source={{ uri: thumb }} style={styles.thumbImg} />
+                          <Image
+                            source={{ uri: thumb }}
+                            style={styles.thumbImg}
+                          />
                           <View style={styles.playIconMini}>
                             <Ionicons name="play" size={14} color="#FFF" />
                           </View>
                         </View>
                         <View style={styles.epDetails}>
-                          <Text style={styles.epNumber}>Episode {ep.episode_number}</Text>
+                          <Text style={styles.epNumber}>
+                            Episode {ep.episode_number}
+                          </Text>
                           <Text style={styles.epTitle} numberOfLines={1}>
                             {ep.name || "Episode " + ep.episode_number}
                           </Text>
                           <Text style={styles.epOverview} numberOfLines={2}>
-                            {ep.overview || "No overview available for this episode."}
+                            {ep.overview ||
+                              "No overview available for this episode."}
                           </Text>
                         </View>
                       </TouchableOpacity>
@@ -292,7 +335,11 @@ export default function DetailsScreen({ route, navigation }) {
                       style={styles.fallbackEpButton}
                       onPress={() => launchPlayer(selectedSeason, num)}
                     >
-                      <Ionicons name="play-circle-outline" size={16} color="#FF334B" />
+                      <Ionicons
+                        name="play-circle-outline"
+                        size={16}
+                        color="#FF334B"
+                      />
                       <Text style={styles.fallbackEpText}>Episode {num}</Text>
                     </TouchableOpacity>
                   ))}
@@ -331,8 +378,19 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
   },
   contentContainer: { paddingHorizontal: 20, marginTop: -32 },
-  mediaTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "800", letterSpacing: 0.3 },
-  tagsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" },
+  mediaTitle: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  tagsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+    flexWrap: "wrap",
+  },
   ratingBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -343,7 +401,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,184,0,0.3)",
   },
-  ratingText: { color: "#FFB800", fontSize: 12, fontWeight: "700", marginLeft: 4 },
+  ratingText: {
+    color: "#FFB800",
+    fontSize: 12,
+    fontWeight: "700",
+    marginLeft: 4,
+  },
   pillBadge: {
     backgroundColor: "#161622",
     paddingVertical: 4,
@@ -353,9 +416,19 @@ const styles = StyleSheet.create({
     borderColor: "#232332",
   },
   pillText: { color: "#8E8E9E", fontSize: 11, fontWeight: "700" },
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 20,
+  },
   playButton: { flex: 1, height: 50, borderRadius: 25, overflow: "hidden" },
-  playGradient: { flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  playGradient: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   playText: { color: "#FFF", fontSize: 15, fontWeight: "700" },
   bookmarkBtn: {
     width: 50,
@@ -368,10 +441,19 @@ const styles = StyleSheet.create({
     borderColor: "#242434",
   },
   synopsisSection: { marginTop: 24 },
-  sectionHeader: { color: "#FFF", fontSize: 17, fontWeight: "700", marginBottom: 10 },
+  sectionHeader: {
+    color: "#FFF",
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
   overviewText: { color: "#9E9EB0", fontSize: 14, lineHeight: 22 },
   episodesWrapper: { marginTop: 28 },
-  seasonHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  seasonHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   seasonsScroll: { gap: 10, paddingVertical: 10 },
   seasonChip: {
     paddingHorizontal: 16,
@@ -394,7 +476,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#22222E",
   },
-  thumbWrapper: { width: 110, height: 68, borderRadius: 8, overflow: "hidden", backgroundColor: "#0A0A0E" },
+  thumbWrapper: {
+    width: 110,
+    height: 68,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#0A0A0E",
+  },
   thumbImg: { width: "100%", height: "100%", resizeMode: "cover" },
   playIconMini: {
     ...StyleSheet.absoluteFillObject,
@@ -406,7 +494,12 @@ const styles = StyleSheet.create({
   epNumber: { color: "#FF334B", fontSize: 11, fontWeight: "700" },
   epTitle: { color: "#FFF", fontSize: 14, fontWeight: "700", marginTop: 2 },
   epOverview: { color: "#7E7E8E", fontSize: 11, lineHeight: 16, marginTop: 4 },
-  fallbackEpGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  fallbackEpGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
   fallbackEpButton: {
     flexDirection: "row",
     alignItems: "center",
