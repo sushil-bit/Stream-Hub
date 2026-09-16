@@ -5,7 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  ScrollView,
+  FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -18,50 +19,59 @@ const SERVERS = [
     name: "VidLink",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? `https://vidlink.pro/tv/${id}/${season}/${episode}`
-        : `https://vidlink.pro/movie/${id}`,
+        ? \`https://vidlink.pro/tv/\${id}/\${season}/\${episode}\`
+        : \`https://vidlink.pro/movie/\${id}\`,
   },
   {
     id: "vidsrc_cc",
     name: "VidSrc CC",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? `https://vidsrc.cc/v2/embed/tv/${id}/${season}/${episode}`
-        : `https://vidsrc.cc/v2/embed/movie/${id}`,
+        ? \`https://vidsrc.cc/v2/embed/tv/\${id}/\${season}/\${episode}\`
+        : \`https://vidsrc.cc/v2/embed/movie/\${id}\`,
   },
   {
-    id: "vidsrc_xyz",
-    name: "VidSrc XYZ",
+    id: "vidsrc_icu",
+    name: "VidSrc ICU",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`
-        : `https://vidsrc.xyz/embed/movie?tmdb=${id}`,
+        ? \`https://vidsrc.icu/embed/tv/\${id}/\${season}/\${episode}\`
+        : \`https://vidsrc.icu/embed/movie/\${id}\`,
+  },
+  {
+    id: "autoembed",
+    name: "AutoEmbed",
+    getUrl: (id, season, episode, isTv) =>
+      isTv
+        ? \`https://player.autoembed.cc/embed/tv/\${id}/\${season}/\${episode}\`
+        : \`https://player.autoembed.cc/embed/movie/\${id}\`,
   },
 ];
 
+const DESKTOP_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+
 export default function PlayerScreen({ route, navigation }) {
   const params = route?.params || {};
+  const mediaId = params.mediaId || params.id;
+  const isTv = Boolean(params.isTv || params.media_type === "tv" || params.seasonNumber);
   
-  // Safe resolution across various naming formats (id, mediaId, item.id)
-  const resolvedId = params.mediaId || params.id || params.item?.id;
-  const isTv = Boolean(params.isTv || params.mediaType === "tv" || params.item?.name);
-  
-  const [activeServerIndex, setActiveServerIndex] = useState(0);
   const [currentSeason, setCurrentSeason] = useState(params.seasonNumber || 1);
   const [currentEpisode, setCurrentEpisode] = useState(params.episodeNumber || 1);
-  const [showEpisodesDrawer, setShowEpisodesDrawer] = useState(false);
+  const [activeServerIndex, setActiveServerIndex] = useState(0);
+  const [showEpisodes, setShowEpisodes] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Default array of fallback episode numbers if dynamic array is omitted
-  const episodesList = params.episodes?.length 
+  const episodesList = params.episodes && params.episodes.length > 0 
     ? params.episodes 
-    : Array.from({ length: 24 }, (_, i) => ({ episode_number: i + 1, name: `Episode ${i + 1}` }));
+    : Array.from({ length: 24 }, (_, i) => ({ episode_number: i + 1, name: \`Episode \${i + 1}\` }));
 
   useEffect(() => {
     async function lockLandscape() {
       try {
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
       } catch (err) {
-        console.warn("ScreenOrientation lock error:", err);
+        console.warn(err);
       }
     }
     lockLandscape();
@@ -76,123 +86,142 @@ export default function PlayerScreen({ route, navigation }) {
     if (url.startsWith("data:") || url.startsWith("about:") || url.startsWith("blob:")) {
       return true;
     }
-    if (url.startsWith("intent:") || url.startsWith("market:") || url.startsWith("android-app:")) {
+    if (
+      url.startsWith("intent:") ||
+      url.startsWith("market:") ||
+      url.startsWith("android-app:") ||
+      url.includes("whomevergooseberry.com")
+    ) {
       return false;
     }
     return true;
   };
 
-  const currentUrl = resolvedId 
-    ? SERVERS[activeServerIndex].getUrl(resolvedId, currentSeason, currentEpisode, isTv)
-    : "about:blank";
+  const targetUrl = SERVERS[activeServerIndex].getUrl(
+    mediaId,
+    currentSeason,
+    currentEpisode,
+    isTv
+  );
 
   return (
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* Video Stream Runtime */}
       <View style={styles.playerContainer}>
-        {resolvedId ? (
-          <WebView
-            source={{ uri: currentUrl }}
-            style={styles.webview}
-            onShouldStartLoadWithRequest={handleShouldStartLoad}
-            setSupportMultipleWindows={false}
-            allowsFullscreenVideo={true}
-            originWhitelist={["*"]}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-          />
-        ) : (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Invalid Media ID</Text>
+        <WebView
+          key={targetUrl}
+          source={{
+            uri: targetUrl,
+            headers: {
+              Referer: "https://vidlink.pro/",
+            },
+          }}
+          userAgent={DESKTOP_UA}
+          style={styles.webview}
+          onLoadStart={() => setLoading(true)}
+          onLoadEnd={() => setLoading(false)}
+          onShouldStartLoadWithRequest={handleShouldStartLoad}
+          setSupportMultipleWindows={false}
+          allowsFullscreenVideo={true}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+        />
+        {loading && (
+          <View style={styles.loaderOverlay}>
+            <ActivityIndicator size="large" color="#FF334B" />
           </View>
         )}
       </View>
 
       {/* Floating Top Controls */}
       <SafeAreaView style={styles.topBarOverlay} pointerEvents="box-none">
-        <TouchableOpacity
-          style={styles.backCircle}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={styles.leftRow}>
+          <TouchableOpacity
+            style={styles.circleBtn}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFF" />
+          </TouchableOpacity>
 
-        <View style={styles.rightControlGroup}>
-          {/* Episodes Drawer Toggle Button (Only for TV series) */}
           {isTv && (
             <TouchableOpacity
-              style={[styles.episodesToggleBtn, showEpisodesDrawer && styles.episodesToggleBtnActive]}
-              onPress={() => setShowEpisodesDrawer((prev) => !prev)}
+              style={styles.episodeToggleBtn}
+              onPress={() => setShowEpisodes(!showEpisodes)}
             >
-              <Ionicons name="list" size={16} color="#FFFFFF" />
-              <Text style={styles.episodesToggleText}>
+              <Ionicons name="list" size={16} color="#FFF" />
+              <Text style={styles.episodeToggleText}>
                 S{currentSeason}:E{currentEpisode}
               </Text>
             </TouchableOpacity>
           )}
+        </View>
 
-          {/* Server Selectors */}
-          <View style={styles.serverRow}>
-            {SERVERS.map((server, idx) => {
-              const isActive = activeServerIndex === idx;
-              return (
-                <TouchableOpacity
-                  key={server.id}
-                  style={[styles.serverChip, isActive && styles.serverChipActive]}
-                  onPress={() => setActiveServerIndex(idx)}
-                >
-                  <Text
-                    style={[
-                      styles.serverChipText,
-                      isActive && styles.serverChipTextActive,
-                    ]}
-                  >
-                    {server.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+        {/* Server Selectors */}
+        <View style={styles.serverRow}>
+          {SERVERS.map((server, idx) => (
+            <TouchableOpacity
+              key={server.id}
+              style={[
+                styles.serverChip,
+                activeServerIndex === idx && styles.serverChipActive,
+              ]}
+              onPress={() => setActiveServerIndex(idx)}
+            >
+              <Text
+                style={[
+                  styles.serverChipText,
+                  activeServerIndex === idx && styles.serverChipTextActive,
+                ]}
+              >
+                {server.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </SafeAreaView>
 
-      {/* Slide-over Episode Drawer for Landscape */}
-      {showEpisodesDrawer && isTv && (
+      {/* Episode Drawer */}
+      {showEpisodes && isTv && (
         <View style={styles.episodeDrawer}>
           <View style={styles.drawerHeader}>
             <Text style={styles.drawerTitle}>Season {currentSeason} Episodes</Text>
-            <TouchableOpacity onPress={() => setShowEpisodesDrawer(false)}>
-              <Ionicons name="close" size={22} color="#FFFFFF" />
+            <TouchableOpacity onPress={() => setShowEpisodes(false)}>
+              <Ionicons name="close" size={22} color="#FFF" />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.drawerScrollList} showsVerticalScrollIndicator={false}>
-            {episodesList.map((ep) => {
-              const epNum = ep.episode_number || ep;
-              const isSelected = currentEpisode === epNum;
+          <FlatList
+            horizontal
+            data={episodesList}
+            keyExtractor={(item) => String(item.episode_number)}
+            contentContainerStyle={{ paddingHorizontal: 12, gap: 10 }}
+            renderItem={({ item }) => {
+              const isSelected = item.episode_number === currentEpisode;
               return (
                 <TouchableOpacity
-                  key={epNum}
-                  style={[styles.drawerEpCard, isSelected && styles.drawerEpCardActive]}
+                  style={[
+                    styles.episodeCard,
+                    isSelected && styles.episodeCardSelected,
+                  ]}
                   onPress={() => {
-                    setCurrentEpisode(epNum);
-                    setShowEpisodesDrawer(false);
+                    setCurrentEpisode(item.episode_number);
+                    setShowEpisodes(false);
                   }}
                 >
-                  <Text style={[styles.drawerEpNumber, isSelected && styles.drawerEpNumberActive]}>
-                    EP {epNum}
-                  </Text>
                   <Text
-                    numberOfLines={1}
-                    style={[styles.drawerEpTitle, isSelected && styles.drawerEpTitleActive]}
+                    style={[
+                      styles.episodeCardText,
+                      isSelected && styles.episodeCardTextSelected,
+                    ]}
                   >
-                    {ep.name || `Episode ${epNum}`}
+                    EP {item.episode_number}
                   </Text>
                 </TouchableOpacity>
               );
-            })}
-          </ScrollView>
+            }}
+          />
         </View>
       )}
     </View>
@@ -200,39 +229,27 @@ export default function PlayerScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000000",
-  },
-  playerContainer: {
+  container: { flex: 1, backgroundColor: "#000" },
+  playerContainer: { ...StyleSheet.absoluteFillObject, backgroundColor: "#000" },
+  webview: { flex: 1, backgroundColor: "#000" },
+  loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000000",
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: "#000000",
-  },
-  errorContainer: {
-    flex: 1,
+    backgroundColor: "#000",
     alignItems: "center",
     justifyContent: "center",
   },
-  errorText: {
-    color: "#FF334B",
-    fontSize: 16,
-    fontWeight: "700",
-  },
   topBarOverlay: {
     position: "absolute",
-    top: 14,
-    left: 20,
-    right: 20,
+    top: 10,
+    left: 16,
+    right: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    zIndex: 100,
+    zIndex: 999,
   },
-  backCircle: {
+  leftRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  circleBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -240,114 +257,60 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
-  rightControlGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  episodesToggleBtn: {
+  episodeToggleBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(20, 20, 28, 0.85)",
+    backgroundColor: "rgba(10, 10, 14, 0.8)",
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.15)",
   },
-  episodesToggleBtnActive: {
-    backgroundColor: "#FF334B",
-    borderColor: "#FF334B",
-  },
-  episodesToggleText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  episodeToggleText: { color: "#FFF", fontSize: 13, fontWeight: "700" },
   serverRow: {
     flexDirection: "row",
     gap: 6,
     backgroundColor: "rgba(10, 10, 14, 0.8)",
-    padding: 3,
+    padding: 4,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
-  serverChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  serverChipActive: {
-    backgroundColor: "#FF334B",
-  },
-  serverChipText: {
-    color: "#8E8E93",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  serverChipTextActive: {
-    color: "#FFFFFF",
-  },
+  serverChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14 },
+  serverChipActive: { backgroundColor: "#FF334B" },
+  serverChipText: { color: "#8E8E93", fontSize: 12, fontWeight: "700" },
+  serverChipTextActive: { color: "#FFF" },
   episodeDrawer: {
     position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: 280,
-    backgroundColor: "rgba(10, 10, 14, 0.95)",
-    zIndex: 200,
-    padding: 16,
-    borderLeftWidth: 1,
-    borderLeftColor: "rgba(255, 255, 255, 0.1)",
+    bottom: 12,
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(15, 15, 20, 0.95)",
+    paddingVertical: 12,
+    borderRadius: 16,
+    zIndex: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   drawerHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.08)",
-  },
-  drawerTitle: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  drawerScrollList: {
-    paddingVertical: 10,
-    gap: 8,
-  },
-  drawerEpCard: {
-    flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: "#161620",
-    gap: 10,
+    paddingHorizontal: 14,
+    marginBottom: 8,
   },
-  drawerEpCardActive: {
-    backgroundColor: "#FF334B",
+  drawerTitle: { color: "#FFF", fontSize: 13, fontWeight: "700" },
+  episodeCard: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "#202028",
   },
-  drawerEpNumber: {
-    color: "#8E8E93",
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  drawerEpNumberActive: {
-    color: "#FFFFFF",
-  },
-  drawerEpTitle: {
-    color: "#E5E5EA",
-    fontSize: 12,
-    fontWeight: "600",
-    flex: 1,
-  },
-  drawerEpTitleActive: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
+  episodeCardSelected: { backgroundColor: "#FF334B" },
+  episodeCardText: { color: "#AAA", fontSize: 12, fontWeight: "700" },
+  episodeCardTextSelected: { color: "#FFF" },
 });
