@@ -33,6 +33,15 @@ const BACKDROP_HEIGHT = SCREEN_WIDTH * 1.1;
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
 export default function DetailsScreen({ route, navigation }) {
+  const media = route?.params?.media || route?.params?.item || route?.params || {};
+  const mediaId = media?.id || route?.params?.id;
+  const isTv = Boolean(
+    media?.first_air_date ||
+    media?.name ||
+    media?.number_of_seasons ||
+    route?.params?.media_type === "tv" ||
+    route?.params?.type === "tv"
+  );
   const [loadingActor, setLoadingActor] = useState(false);
   const [selectedActor, setSelectedActor] = useState(null);
   const [actorDetails, setActorDetails] = useState(null);
@@ -151,12 +160,11 @@ export default function DetailsScreen({ route, navigation }) {
   const [downloadConfigVisible, setDownloadConfigVisible] = useState(false);
 
   useEffect(() => {
-    if (media?.id) {
-      const isSeries = !!(media?.first_air_date || media?.name || media?.number_of_seasons || route?.params?.mediaType === 'tv' || route?.params?.type === 'tv');
-      const mediaType = isSeries ? 'tv' : 'movie';
-      fetchMediaDetailsExtra(mediaType, media.id);
+    if (mediaId) {
+      const type = isTv ? "tv" : "movie";
+      fetchMediaDetailsExtra(type, mediaId);
     }
-  }, [media?.id]);
+  }, [mediaId, isTv]);
 
   useEffect(() => {
     checkBookmark();

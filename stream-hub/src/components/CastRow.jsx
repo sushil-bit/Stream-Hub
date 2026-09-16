@@ -32,7 +32,13 @@ export default function CastRow({ cast = [], crew = [], onSelectActor }) {
     { id: 'producers', label: 'Producers', data: producers.slice(0, 10), defaultRole: 'Producer' },
   ].filter((cat) => cat.data && cat.data.length > 0);
 
-  if ((!cast || cast.length === 0) && (!crew || crew.length === 0)) return null;
+  if ((!cast || cast.length === 0) && (!crew || crew.length === 0)) {
+    return (
+      <View style={{ marginVertical: 12, paddingHorizontal: 16 }}>
+        <Text style={{ color: "#7E7E8A", fontSize: 13 }}>Loading Cast & Crew...</Text>
+      </View>
+    );
+  }
   if (categories.length === 0) return null;
 
   const currentCategory = categories.find((c) => c.id === activeCategory) || categories[0];

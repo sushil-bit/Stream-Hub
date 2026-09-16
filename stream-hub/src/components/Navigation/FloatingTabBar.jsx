@@ -1,62 +1,57 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function FloatingTabBar({ state, navigation }) {
+export default function FloatingTabBar({ state, descriptors, navigation }) {
+  const tabs = [
+    { name: 'Home', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
+    { name: 'Explore', label: 'Explore', icon: 'search-outline', activeIcon: 'search' },
+    { name: 'Details', label: 'List', icon: 'bookmark-outline', activeIcon: 'bookmark' },
+    { name: 'Downloads', label: 'Downloads', icon: 'download-outline', activeIcon: 'download' },
+  ];
+
   return (
     <View style={styles.wrapper}>
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Home')}>
-          <MaterialCommunityIcons
-            name="home-variant"
-            size={24}
-            color={state.index === 0 ? '#FF334B' : '#7E7E8A'}
-          />
-          <Text style={[styles.tabLabel, state.index === 0 && styles.activeLabel]}>Home</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        {tabs.map((tab, index) => {
+          const isFocused = state.index === index;
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Explore')}>
-          <Feather
-            name="compass"
-            size={22}
-            color={state.index === 1 ? '#FF334B' : '#7E7E8A'}
-          />
-          <Text style={[styles.tabLabel, state.index === 1 && styles.activeLabel]}>Explore</Text>
-        </TouchableOpacity>
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: state.routes[index]?.key,
+              canPreventDefault: true,
+            });
 
-        <TouchableOpacity style={styles.centerFab} onPress={() => navigation.navigate('Explore')}>
-          <LinearGradient colors={['#FF5267', '#D81B34']} style={styles.centerGradient}>
-            <Ionicons name="search" size={22} color="#FFF" />
-          </LinearGradient>
-        </TouchableOpacity>
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(tab.name);
+            }
+          };
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Details')}>
-          <Ionicons
-            name="bookmark-outline"
-            size={22}
-            color={state.index === 2 ? '#FF334B' : '#7E7E8A'}
-          />
-          <Text style={[styles.tabLabel, state.index === 2 && styles.activeLabel]}>List</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => navigation.navigate("Downloads")}
-        >
-          <Ionicons
-            name={state.index === 3 ? "download" : "download-outline"}
-            size={22}
-            color={state.index === 3 ? "#FF334B" : "#7E7E8A"}
-          />
-          <Text
-            style={[
-              styles.tabLabel,
-              state.index === 3 && styles.activeLabel,
-            ]}
-          >
-            Downloads
-          </Text>
-        </TouchableOpacity>
+          return (
+            <TouchableOpacity
+              key={tab.name}
+              style={styles.tabItem}
+              onPress={onPress}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={isFocused ? tab.activeIcon : tab.icon}
+                size={21}
+                color={isFocused ? '#FF334B' : '#7E7E8A'}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  isFocused && styles.activeLabel,
+                ]}
+                numberOfLines={1}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -65,35 +60,42 @@ export default function FloatingTabBar({ state, navigation }) {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  tabBar: {
-    height: 64,
-    backgroundColor: '#15151EFA',
-    borderRadius: 32,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    bottom: 18,
+    left: 16,
+    right: 16,
     alignItems: 'center',
-    paddingHorizontal: 12,
+  },
+  container: {
+    flexDirection: 'row',
+    width: '100%',
+    height: 60,
+    backgroundColor: '#16161F',
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: '#22222E',
     elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
-  tabItem: { flex: 1,  alignItems: 'center', justifyContent: 'center' },
-  tabLabel: { fontSize: 10, color: '#7E7E8A', marginTop: 2 },
-  activeLabel: { color: '#FF334B' },
-  centerFab: { top: -14 },
-  centerGradient: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
+  tabItem: {
+    flex: 1,
     alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#FF334B',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  tabLabel: {
+    fontSize: 10,
+    color: '#7E7E8A',
+    marginTop: 3,
+    fontWeight: '500',
+  },
+  activeLabel: {
+    color: '#FF334B',
+    fontWeight: '700',
   },
 });
