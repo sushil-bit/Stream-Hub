@@ -101,66 +101,12 @@ export default function DetailsScreen({ route, navigation }) {
   const [downloadConfigVisible, setDownloadConfigVisible] = useState(false);
 
   useEffect(() => {
-    getDownloads().then((map) => setDownloadMap(map || {}));
-  }, []);
-
-  const handleDownloadStatus = (key, status) => {
-    setDownloadMap((prev) => {
-      const next = { ...prev };
-      if (status) next[key] = true;
-      else delete next[key];
-      return next;
-    });
-  };
-  const [actorDetails, setActorDetails] = useState(null);
-  const [loadingActor, setLoadingActor] = useState(false);
-
-  const handleActorPress = async (actor) => {
-    setSelectedActor(actor);
-    setLoadingActor(true);
-    try {
-      const key = 'fb2e44c3e763e38d9214c5266987acf3';
-      const [bioRes, creditsRes] = await Promise.allSettled([
-        fetch(`https://api.themoviedb.org/3/person/${actor.id}?api_key=${key}`).then(r => r.json()),
-        fetch(`https://api.themoviedb.org/3/person/${actor.id}/combined_credits?api_key=${key}`).then(r => r.json()),
-      ]);
-
-      setActorDetails({
-        bio: bioRes.status === 'fulfilled' ? bioRes.value : {},
-        credits: creditsRes.status === 'fulfilled' && creditsRes.value?.cast ? creditsRes.value.cast : []
-      });
-    } catch (err) {
-      console.warn('Failed to load actor profile:', err);
-    } finally {
-      setLoadingActor(false);
-    }
-  }; // 'grid' | 'list'
-
-
-  useEffect(() => {
     if (media?.id) {
-      const type = media?.media_type === 'tv' || (!media?.title && !!media?.name) ? 'tv' : 'movie';
-      fetchMediaDetailsExtra(type, media.id);
+      const isSeries = !!(media.first_air_date || media.name || media.number_of_seasons || route?.params?.type === 'tv');
+      const mediaType = isSeries ? 'tv' : 'movie';
+      fetchMediaDetailsExtra(mediaType, media.id);
     }
-    if (isTv && media?.id) {
-      const fetchSeasonEpisodes = async () => {
-        setLoadingEpisodes(true);
-        try {
-          const key = 'fb2e44c3e763e38d9214c5266987acf3';
-          const res = await fetch(`https://api.themoviedb.org/3/tv/${media.id}/season/${selectedSeason}?api_key=${key}`);
-          const data = await res.json();
-          if (data && data.episodes) {
-            setEpisodes(data.episodes);
-          }
-        } catch (err) {
-          console.warn('Failed to load season episodes:', err);
-        } finally {
-          setLoadingEpisodes(false);
-        }
-      };
-      fetchSeasonEpisodes();
-    }
-  }, [selectedSeason, media?.id, isTv]);
+  }, [media?.id]);
 
   useEffect(() => {
     checkBookmark();
