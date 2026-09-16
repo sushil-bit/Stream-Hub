@@ -1,5 +1,5 @@
 import LoadingPanel from "../components/Common/LoadingPanel";
-import { CastRow } from '../components/CastRow';
+import { Modal, CastRow } from '../components/CastRow';
 import { RecommendationRow } from '../components/RecommendationRow';
 import React, { useState, useEffect } from "react";
 import {
@@ -11,8 +11,7 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
-  ActivityIndicator,
-} from "react-native";
+  ActivityIndicator, } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, Feather } from "@expo/vector-icons";
@@ -94,7 +93,8 @@ export default function DetailsScreen({ route, navigation }) {
     directors: [],
   });
   const [loadingExtras, setLoadingExtras] = useState(false);
-  const [episodeViewMode, setEpisodeViewMode] = useState('grid'); // 'grid' | 'list'
+  const [episodeViewMode, setEpisodeViewMode] = useState('grid');
+  const [seasonModalVisible, setSeasonModalVisible] = useState(false); // 'grid' | 'list'
 
 
   useEffect(() => {
@@ -341,32 +341,19 @@ export default function DetailsScreen({ route, navigation }) {
           <CastRow cast={extraData.topCast} />
       {isTv && (
         <View style={styles.tvSectionContainer}>
-          {/* Season Selector Pills */}
-          <Text style={styles.sectionHeaderTitle}>Seasons</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.seasonScrollContent}
-          >
-            {(seasons && seasons.length > 0
-              ? seasons.filter(s => s.season_number > 0)
-              : Array.from({ length: media?.number_of_seasons || 1 }, (_, i) => ({ season_number: i + 1, name: `Season ${i + 1}` }))
-            ).map((s) => {
-              const sNum = s.season_number;
-              const isSelected = selectedSeason === sNum;
-              return (
-                <TouchableOpacity
-                  key={sNum}
-                  style={[styles.seasonPill, isSelected && styles.seasonPillActive]}
-                  onPress={() => setSelectedSeason(sNum)}
-                >
-                  <Text style={[styles.seasonPillText, isSelected && styles.seasonPillTextActive]}>
-                    Season {sNum}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          {/* Season Dropdown Button */}
+          <View style={styles.seasonDropdownRow}>
+            <TouchableOpacity
+              style={styles.seasonDropdownButton}
+              onPress={() => setSeasonModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.seasonDropdownText}>
+                {seasons.find(s => s.season_number === selectedSeason)?.name || `Season ${selectedSeason}`}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
 
           {/* Episodes Header + Grid/List Toggle */}
           <View style={styles.episodesHeaderRow}>
@@ -457,12 +444,130 @@ export default function DetailsScreen({ route, navigation }) {
           navigation={navigation} 
         />
       </View>
-      </ScrollView>
-    </View>
-  );
-}
+      
+      {/* Season Selection Modal */}
+      <Modal
+        visible={seasonModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSeasonModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setSeasonModalVisible(false)}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Season</Text>
+              <TouchableOpacity onPress={() => setSeasonModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#AAAAAA" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {(seasons && seasons.length > 0
+                ? seasons.filter(s => s.season_number > 0)
+                : Array.from({ length: media?.number_of_seasons || 1 }, (_, i) => ({
+                    season_number: i + 1,
+                    name: `Season ${i + 1}`
+                  }))
+              ).map((s) => {
+                const sNum = s.season_number;
+                const isSelected = selectedSeason === sNum;
+                return (
+                  <TouchableOpacity
+                    key={sNum}
+                    style={[styles.seasonOptionRow, isSelected && styles.seasonOptionRowActive]}
+                    onPress={() => {
+                      setSelectedSeason(sNum);
+                      setSeasonModalVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.seasonOptionText, isSelected && styles.seasonOptionTextActive]}>
+                      {s.name || `Season ${sNum}`}
+                    </Text>
+                    {isSelected && <Ionicons name="checkmark" size={20} color="#E50914" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
-const styles = StyleSheet.create({
+        </ScrollView>
+      </View>
+    );
+  }
+
+  const styles = StyleSheet.create({
+  seasonDropdownRow: {
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  seasonDropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E24',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2F2F3D',
+    gap: 10,
+  },
+  seasonDropdownText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#16161D',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 36,
+    borderWidth: 1,
+    borderColor: '#2D2D3B',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  seasonOptionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#242432',
+  },
+  seasonOptionRowActive: {
+    backgroundColor: '#1E1E26',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+  },
+  seasonOptionText: {
+    color: '#A0A0B2',
+    fontSize: 15,
+  },
+  seasonOptionTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   tvSectionContainer: {
     marginVertical: 16,
     paddingHorizontal: 16,
