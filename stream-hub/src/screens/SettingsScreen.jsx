@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,29 +9,30 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SettingsScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation.canGoBack && navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    // If in root stack, navigate to parent tab navigator
-    try {
-      navigation.navigate("Main", { screen: "Me" });
-    } catch (e) {
-      try {
-        navigation.navigate("Home");
-      } catch (err) {
-        console.log("No back route found");
-      }
-    }
-  };
   const [wifiOnly, setWifiOnly] = useState(true);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
   const [hardwareAccel, setHardwareAccel] = useState(true);
   const [cacheSize, setCacheSize] = useState("38.4 MB");
+
+  const handleBack = () => {
+    if (navigation?.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    const parent = navigation?.getParent && navigation.getParent();
+    if (parent?.canGoBack && parent.canGoBack()) {
+      parent.goBack();
+      return;
+    }
+    // Fallback to top-level tab routes
+    try {
+      navigation.navigate("Home");
+    } catch (e) {
+      console.warn("Back navigation fallback:", e);
+    }
+  };
 
   const clearAppCache = async () => {
     Alert.alert("Clear Cache", "This will free up cached posters and preview files.", [
@@ -50,17 +51,8 @@ export default function SettingsScreen({ navigation }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => {
-            if (navigation.canGoBack && navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              navigation.navigate("Me");
-            }
-          }}
-          style={styles.backBtn}
-        >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
@@ -115,7 +107,7 @@ export default function SettingsScreen({ navigation }) {
       {/* Storage Management */}
       <Text style={styles.sectionHeader}>STORAGE & DATA</Text>
       <View style={styles.group}>
-        <TouchableOpacity style={styles.clickableRow} onPress={clearAppCache}>
+        <TouchableOpacity style={styles.clickableRow} onPress={clearAppCache} activeOpacity={0.7}>
           <View style={styles.rowLabelGroup}>
             <Text style={styles.rowTitle}>Clear Image Cache</Text>
             <Text style={styles.rowSubtitle}>{cacheSize} cached posters and metadata</Text>
@@ -133,7 +125,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0D0C13",
   },
   content: {
-    paddingTop: 50,
+    paddingTop: 52,
     paddingHorizontal: 16,
     paddingBottom: 40,
   },
