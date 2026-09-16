@@ -1,17 +1,17 @@
 import LoadingPanel from "../components/Common/LoadingPanel";
-import { Modal, CastRow } from '../components/CastRow';
-import { RecommendationRow } from '../components/RecommendationRow';
-import React, { useState, useEffect } from "react";
 import {
-  StyleSheet,
-  Text,
   View,
+  Text,
+  StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
+  Image,
   Dimensions,
+  ActivityIndicator,
   StatusBar,
-  ActivityIndicator, } from 'react-native';
+  Share,
+  Modal
+} from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, Feather } from "@expo/vector-icons";
