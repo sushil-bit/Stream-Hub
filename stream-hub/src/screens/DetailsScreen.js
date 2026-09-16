@@ -57,19 +57,33 @@ export default function DetailsScreen({ route, navigation }) {
   const [extraData, setExtraData] = useState(null);
 
   
-  const fetchMediaDetailsExtra = async (type, id) => {
-    if (!id || id === "undefined") return;
+    const fetchMediaDetailsExtra = async (type, id) => {
+    // 1. Guard against missing or malformed IDs
+    if (!id || id === "undefined" || id === "null" || isNaN(Number(id))) {
+      console.log("[DetailsScreen] Skipping TMDB credits fetch for non-numeric/custom ID:", id);
+      return;
+    }
+
     try {
       const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
       const mediaType = (type === "tv" || type === "series") ? "tv" : "movie";
-      
-      const res = await fetch(
-        `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,recommendations`
-      );
-      
-      const data = await res.json();
-      
-      // Instantly inject credits into extraData
+      const url = `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,recommendations`;
+
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        console.warn(`[DetailsScreen] TMDB fetch failed (${res.status}):`, url);
+        return;
+      }
+
+      const rawText = await res.text();
+      if (!rawText.trim().startsWith("{") && !rawText.trim().startsWith("[")) {
+        console.warn("[DetailsScreen] Non-JSON payload received:", rawText.slice(0, 100));
+        return;
+      }
+
+      const data = JSON.parse(rawText);
+
       setExtraData(prev => ({
         ...(prev || {}),
         ...data,
@@ -79,7 +93,7 @@ export default function DetailsScreen({ route, navigation }) {
         },
       }));
     } catch (e) {
-      console.warn("Unified media fetch error:", e);
+      console.warn("Unified media fetch error caught safely:", e.message);
     }
   };
 
