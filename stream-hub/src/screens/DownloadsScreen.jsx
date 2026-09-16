@@ -145,7 +145,7 @@ export default function DownloadsScreen({ navigation }) {
       ) : (
         <FlatList
           data={folders}
-          keyExtractor={(item) => item.folderKey}
+          keyExtractor={(item, index) => String(item?.folderKey || item?.id || item?.title || index)}
           renderItem={renderFolderItem}
           contentContainerStyle={styles.list}
         />
