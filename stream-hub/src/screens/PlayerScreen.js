@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -39,13 +40,24 @@ const SERVERS = [
 ];
 
 export default function PlayerScreen({ route, navigation }) {
-  const {
-    mediaId,
-    title,
-    isTv = false,
-    seasonNumber = 1,
-    episodeNumber = 1,
-  } = route?.params || {};
+  const params = route?.params || {};
+  
+  // Resolve mediaId across different screen parameter patterns
+  const resolvedMediaId =
+    params.mediaId ||
+    params.id ||
+    params.item?.id ||
+    params.tmdbId;
+
+  const isTv = Boolean(
+    params.isTv ||
+    params.mediaType === "tv" ||
+    params.item?.media_type === "tv" ||
+    params.seasonNumber
+  );
+
+  const seasonNumber = params.seasonNumber || 1;
+  const episodeNumber = params.episodeNumber || 1;
 
   const [activeServerIndex, setActiveServerIndex] = useState(0);
 
@@ -87,8 +99,25 @@ export default function PlayerScreen({ route, navigation }) {
     return true;
   };
 
+  // If no ID could be resolved, show a graceful fallback rather than firing an invalid URL
+  if (!resolvedMediaId) {
+    return (
+      <View style={styles.errorContainer}>
+        <StatusBar hidden />
+        <Ionicons name="alert-circle-outline" size={48} color="#FF334B" />
+        <Text style={styles.errorText}>Missing Media Identifier</Text>
+        <TouchableOpacity
+          style={styles.errorButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.errorButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const currentUrl = SERVERS[activeServerIndex].getUrl(
-    mediaId,
+    resolvedMediaId,
     seasonNumber,
     episodeNumber,
     isTv
@@ -108,6 +137,12 @@ export default function PlayerScreen({ route, navigation }) {
           originWhitelist={["*"]}
           javaScriptEnabled={true}
           domStorageEnabled={true}
+          renderLoading={() => (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#FF334B" />
+            </View>
+          )}
+          startInLoadingState={true}
         />
       </View>
 
@@ -158,6 +193,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000000",
   },
+  loadingContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0A0A0E",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   topBarOverlay: {
     position: "absolute",
     top: 14,
@@ -202,5 +243,27 @@ const styles = StyleSheet.create({
   },
   serverChipTextActive: {
     color: "#FFFFFF",
+  },
+  errorContainer: {
+    flex: 1,
+    backgroundColor: "#0A0A0E",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 14,
+  },
+  errorText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  errorButton: {
+    backgroundColor: "#1C1C26",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  errorButtonText: {
+    color: "#FF334B",
+    fontWeight: "700",
   },
 });
