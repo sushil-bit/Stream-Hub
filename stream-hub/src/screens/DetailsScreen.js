@@ -319,112 +319,118 @@ export default function DetailsScreen({ route, navigation }) {
           {/* Seasons & Episodes Section (Only rendered for TV Shows & Anime) */}
           <CastRow cast={extraData.topCast} />
       {isTv && (
-            <View style={styles.episodesWrapper}>
-              <View style={styles.seasonHeaderRow}>
-                <Text style={styles.sectionHeader}>Seasons & Episodes</Text>
-              </View>
-
-              {/* Season Selection Pills */}
-              {seasons.length > 0 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.seasonsScroll}
+        <View style={styles.tvSectionContainer}>
+          {/* Season Selector Pills */}
+          <Text style={styles.sectionHeaderTitle}>Seasons</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.seasonScrollContent}
+          >
+            {(seasons && seasons.length > 0
+              ? seasons.filter(s => s.season_number > 0)
+              : Array.from({ length: media?.number_of_seasons || 1 }, (_, i) => ({ season_number: i + 1, name: `Season ${i + 1}` }))
+            ).map((s) => {
+              const sNum = s.season_number;
+              const isSelected = selectedSeason === sNum;
+              return (
+                <TouchableOpacity
+                  key={sNum}
+                  style={[styles.seasonPill, isSelected && styles.seasonPillActive]}
+                  onPress={() => setSelectedSeason(sNum)}
                 >
-                  {seasons.map((s) => {
-                    const isSelected = selectedSeason === s.season_number;
-                    return (
-                      <TouchableOpacity
-                        key={"season-" + s.season_number}
-                        style={[
-                          styles.seasonChip,
-                          isSelected && styles.seasonChipActive,
-                        ]}
-                        onPress={() => handleSeasonSelect(s.season_number)}
-                      >
-                        <Text
-                          style={[
-                            styles.seasonChipText,
-                            isSelected && styles.seasonChipTextActive,
-                          ]}
-                        >
-                          {s.name || "Season " + s.season_number}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
+                  <Text style={[styles.seasonPillText, isSelected && styles.seasonPillTextActive]}>
+                    Season {sNum}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
-              {/* Episode Cards */}
-              {loadingEpisodes ? (
-                <View style={styles.episodesLoader}>
-                  <ActivityIndicator size="small" color="#FF334B" />
-                </View>
-              ) : episodes.length > 0 ? (
-                <View style={styles.episodeList}>
-                  {episodes.map((ep) => {
-                    const thumb = ep.still_path
-                      ? IMAGE_URL + ep.still_path
-                      : backdropUri;
-                    return (
-                      <TouchableOpacity
-                        key={"ep-" + ep.id}
-                        style={styles.episodeCard}
-                        activeOpacity={0.8}
-                        onPress={() =>
-                          launchPlayer(selectedSeason, ep.episode_number)
-                        }
-                      >
-                        <View style={styles.thumbWrapper}>
-                          <Image
-                            source={{ uri: thumb }}
-                            style={styles.thumbImg}
-                          />
-                          <View style={styles.playIconMini}>
-                            <Ionicons name="play" size={14} color="#FFF" />
-                          </View>
-                        </View>
-                        <View style={styles.epDetails}>
-                          <Text style={styles.epNumber}>
-                            Episode {ep.episode_number}
-                          </Text>
-                          <Text style={styles.epTitle} numberOfLines={1}>
-                            {ep.name || "Episode " + ep.episode_number}
-                          </Text>
-                          <Text style={styles.epOverview} numberOfLines={2}>
-                            {ep.overview ||
-                              "No overview available for this episode."}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : (
-                <View style={styles.fallbackEpGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
-                    <TouchableOpacity
-                      key={"fallback-" + num}
-                      style={styles.fallbackEpButton}
-                      onPress={() => launchPlayer(selectedSeason, num)}
-                    >
-                      <Ionicons
-                        name="play-circle-outline"
-                        size={16}
-                        color="#FF334B"
-                      />
-                      <Text style={styles.fallbackEpText}>Episode {num}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+          {/* Episodes Header + Grid/List Toggle */}
+          <View style={styles.episodesHeaderRow}>
+            <Text style={styles.sectionHeaderTitle}>Episodes</Text>
+            <View style={styles.viewToggleGroup}>
+              <TouchableOpacity
+                style={[styles.toggleBtn, episodeViewMode === 'grid' && styles.toggleBtnActive]}
+                onPress={() => setEpisodeViewMode('grid')}
+              >
+                <Ionicons
+                  name="grid-outline"
+                  size={18}
+                  color={episodeViewMode === 'grid' ? '#FFFFFF' : '#888888'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleBtn, episodeViewMode === 'list' && styles.toggleBtnActive]}
+                onPress={() => setEpisodeViewMode('list')}
+              >
+                <Ionicons
+                  name="list-outline"
+                  size={18}
+                  color={episodeViewMode === 'list' ? '#FFFFFF' : '#888888'}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Episode List Rendering */}
+          {loadingEpisodes ? (
+            <ActivityIndicator size="small" color="#E50914" style={{ marginVertical: 20 }} />
+          ) : episodeViewMode === 'grid' ? (
+            <View style={styles.gridContainer}>
+              {(episodes && episodes.length > 0
+                ? episodes
+                : Array.from({ length: 20 }, (_, i) => ({ episode_number: i + 1, name: `Episode ${i + 1}` }))
+              ).map((ep) => {
+                const epNum = ep.episode_number;
+                return (
+                  <TouchableOpacity
+                    key={epNum}
+                    style={styles.gridCard}
+                    onPress={() => launchPlayer(selectedSeason, epNum)}
+                  >
+                    <Ionicons name="play" size={14} color="#E50914" />
+                    <Text style={styles.gridCardText}>Ep {epNum}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.listContainer}>
+              {(episodes && episodes.length > 0
+                ? episodes
+                : Array.from({ length: 20 }, (_, i) => ({ episode_number: i + 1, name: `Episode ${i + 1}`, overview: 'No description available.' }))
+              ).map((ep) => {
+                const epNum = ep.episode_number;
+                return (
+                  <TouchableOpacity
+                    key={epNum}
+                    style={styles.listItemCard}
+                    onPress={() => launchPlayer(selectedSeason, epNum)}
+                  >
+                    <View style={styles.listBadge}>
+                      <Ionicons name="play" size={16} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.listDetails}>
+                      <Text style={styles.listTitle} numberOfLines={1}>
+                        {epNum}. {ep.name || `Episode ${epNum}`}
+                      </Text>
+                      {ep.overview ? (
+                        <Text style={styles.listOverview} numberOfLines={2}>
+                          {ep.overview}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
-        
-        {/* Cast & Recommendations */}
-        
-        <RecommendationRow 
+        </View>
+      )}
+
+      <RecommendationRow 
           items={extraData.recommendations} 
           type={isTv ? 'tv' : 'movie'} 
           navigation={navigation} 
@@ -436,6 +442,121 @@ export default function DetailsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  tvSectionContainer: {
+    marginVertical: 16,
+    paddingHorizontal: 16,
+  },
+  sectionHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  seasonScrollContent: {
+    paddingBottom: 14,
+    gap: 8,
+  },
+  seasonPill: {
+    backgroundColor: '#1E1E24',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#2D2D38',
+    marginRight: 8,
+  },
+  seasonPillActive: {
+    backgroundColor: '#E50914',
+    borderColor: '#E50914',
+  },
+  seasonPillText: {
+    color: '#A0A0B0',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  seasonPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  episodesHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  viewToggleGroup: {
+    flexDirection: 'row',
+    backgroundColor: '#1E1E24',
+    borderRadius: 8,
+    padding: 3,
+  },
+  toggleBtn: {
+    padding: 6,
+    borderRadius: 6,
+  },
+  toggleBtnActive: {
+    backgroundColor: '#2D2D38',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  gridCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1E1E24',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    minWidth: '22%',
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: '#2A2A35',
+    gap: 6,
+  },
+  gridCardText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  listContainer: {
+    gap: 10,
+  },
+  listItemCard: {
+    flexDirection: 'row',
+    backgroundColor: '#1E1E24',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A2A35',
+  },
+  listBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E50914',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  listDetails: {
+    flex: 1,
+  },
+  listTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 3,
+  },
+  listOverview: {
+    color: '#8A8A9E',
+    fontSize: 12,
+    lineHeight: 16,
+  },
   container: { flex: 1, backgroundColor: "#0A0A0E" },
   heroWrapper: { width: SCREEN_WIDTH, height: BACKDROP_HEIGHT },
   backdropImage: { width: "100%", height: "100%", resizeMode: "cover" },
