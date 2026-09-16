@@ -68,6 +68,7 @@ export default function DetailsScreen({ route, navigation }) {
     topCast: [],
     directors: [],
   });
+  const [loadingExtras, setLoadingExtras] = useState(false);
 
 
   useEffect(() => {
