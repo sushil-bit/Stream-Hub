@@ -1,4 +1,6 @@
 import LoadingPanel from "../components/Common/LoadingPanel";
+import { CastRow } from '../components/CastRow';
+import { RecommendationRow } from '../components/RecommendationRow';
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -402,7 +404,15 @@ export default function DetailsScreen({ route, navigation }) {
               )}
             </View>
           )}
-        </View>
+        
+        {/* Cast & Recommendations */}
+        <CastRow cast={extraData.topCast} />
+        <RecommendationRow 
+          items={extraData.recommendations} 
+          type={isTv ? 'tv' : 'movie'} 
+          navigation={navigation} 
+        />
+      </View>
       </ScrollView>
     </View>
   );
