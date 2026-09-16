@@ -913,8 +913,10 @@ export default function DetailsScreen({ route, navigation }) {
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#292938',
+    marginBottom: 8,
   },
   episodeListPlayBadge: {
     width: 34,
@@ -927,6 +929,13 @@ export default function DetailsScreen({ route, navigation }) {
   },
   episodeListContent: {
     flex: 1,
+    paddingRight: 10,
+  },
+  episodeDownloadBtn: {
+    padding: 8,
+    backgroundColor: '#242434',
+    borderRadius: 20,
+    marginLeft: 8,
   },
   episodeListTitle: {
     color: '#FFFFFF',
