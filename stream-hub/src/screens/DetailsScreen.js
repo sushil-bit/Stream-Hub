@@ -55,7 +55,19 @@ const fetchMediaDetailsExtra = async (type, id) => {
   }
 };
 
-export default function DetailsScreen({ route, navigation }) {
+export default function DetailsScreen({
+
+  console.log('[DEBUG Component Imports]', {
+    CastRow: typeof CastRow,
+    RecommendationRow: typeof RecommendationRow,
+    LoadingPanel: typeof LoadingPanel,
+    Ionicons: typeof Ionicons,
+    Feather: typeof Feather,
+    Modal: typeof Modal,
+    LinearGradient: typeof LinearGradient,
+    SafeAreaView: typeof SafeAreaView
+  });
+ route, navigation }) {
   const media = route?.params?.media || {};
   const isTv =
     media.media_type === "tv" || media.isAnime || !!media.first_air_date;
