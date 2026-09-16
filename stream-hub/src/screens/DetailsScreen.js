@@ -526,34 +526,38 @@ export default function DetailsScreen({ route, navigation }) {
               ).map((ep) => {
                 const epNum = ep.episode_number;
                 return (
-                  <TouchableOpacity
-                    key={epNum}
-                    style={styles.episodeListItem}
-                    onPress={() => launchPlayer(selectedSeason, epNum)}
-                  >
-                    <View style={styles.episodeListPlayBadge}>
-                      <Ionicons name="play" size={15} color="#FFFFFF" />
-                    </View>
-                    <View style={styles.episodeListContent}>
-                      <Text style={styles.episodeListTitle} numberOfLines={1}>
-                        {epNum}. {ep.name || `Episode ${epNum}`}
-                      </Text>
-                      {ep.overview ? (
-                        <Text style={styles.episodeListOverview} numberOfLines={2}>
-                          {ep.overview}
+                  <View key={epNum} style={styles.episodeListItemRow}>
+                    <TouchableOpacity
+                      style={styles.episodeListMainTouchable}
+                      onPress={() => launchPlayer(selectedSeason, epNum)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.episodeListPlayBadge}>
+                        <Ionicons name="play" size={15} color="#FFFFFF" />
+                      </View>
+                      <View style={styles.episodeListContent}>
+                        <Text style={styles.episodeListTitle} numberOfLines={1}>
+                          {epNum}. {ep.name || `Episode ${epNum}`}
                         </Text>
-                      ) : null}
-                    </View>
+                        {ep.overview ? (
+                          <Text style={styles.episodeListOverview} numberOfLines={2}>
+                            {ep.overview}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
                     <DownloadButton
-                    itemKey={`${media?.id}_s${selectedSeason}_e${epNum}`}
-                    title={`${media?.name || media?.title} - S${selectedSeason}E${epNum}`}
-                    mediaType="tv"
-                    season={selectedSeason}
-                    episode={epNum}
-                    isDownloaded={!!downloadMap[`${media?.id}_s${selectedSeason}_e${epNum}`]}
-                    onStatusChange={handleDownloadStatus}
-                  />
-                </TouchableOpacity>
+                      itemKey={`${media?.id}_s${selectedSeason}_e${epNum}`}
+                      title={`${media?.name || media?.title} - S${selectedSeason}E${epNum}`}
+                      mediaType="tv"
+                      season={selectedSeason}
+                      episode={epNum}
+                      isDownloaded={!!downloadMap[`${media?.id}_s${selectedSeason}_e${epNum}`]}
+                      onStatusChange={handleDownloadStatus}
+                      size={22}
+                      style={styles.listDownloadBtn}
+                    />
+                  </View>
                 );
               })}
             </View>
@@ -715,6 +719,41 @@ export default function DetailsScreen({ route, navigation }) {
   }
 
   const styles = StyleSheet.create({
+  episodeGridCardWrapper: {
+    width: '23%',
+    position: 'relative',
+    marginBottom: 8,
+  },
+  gridDownloadBtn: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    padding: 3,
+    backgroundColor: 'rgba(20,20,28,0.85)',
+    borderRadius: 10,
+  },
+  episodeListItemRow: {
+    flexDirection: 'row',
+    backgroundColor: '#1C1C24',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#292938',
+    marginBottom: 8,
+  },
+  episodeListMainTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  listDownloadBtn: {
+    padding: 8,
+    backgroundColor: '#242434',
+    borderRadius: 20,
+    marginLeft: 10,
+  },
   actorModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.75)',
