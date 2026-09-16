@@ -107,11 +107,13 @@ export default function DetailsScreen({ route, navigation }) {
   }, [media]);
 
   const loadExtraDetails = async () => {
+    console.log('[DEBUG Details] Loading extras for:', media?.id, 'isTv:', isTv);
     setLoadingExtras(true);
     try {
       const type = isTv ? 'tv' : 'movie';
       const data = await (type, media.id);
-      setExtraData(data);
+      console.log('[DEBUG Details] Received extra data:', JSON.stringify(data)?.slice(0, 100));
+    setExtraData(data);
     } catch (err) {
       console.warn('Failed to load extra details:', err);
     } finally {
