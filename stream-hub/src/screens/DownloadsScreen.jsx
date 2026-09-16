@@ -15,6 +15,22 @@ import { getDownloads, removeDownloadRecord } from '../services/downloadManager'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w185';
 
 export default function DownloadsScreen({ navigation }) {
+
+  const handleDownloadRemaining = (folder) => {
+    if (!folder) return;
+    if (folder.type === "movie") {
+      // Re-trigger download config modal or single download for movie
+      navigation.navigate("DetailsScreen", { media: folder.media || { id: folder.id, title: folder.title } });
+      return;
+    }
+    // Navigate back to details screen with targeted season
+    navigation.navigate("DetailsScreen", { 
+      media: folder.media || { id: folder.id, name: folder.title, media_type: "tv" },
+      autoOpenDownloads: true,
+      targetSeason: folder.seasonNumber || 1
+    });
+  };
+ navigation }) {
   const [folders, setFolders] = useState([]);
   const [expandedFolders, setExpandedFolders] = useState({});
 
@@ -155,6 +171,42 @@ export default function DownloadsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  folderStatusContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  downloadRemainingBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 51, 75, 0.12)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 51, 75, 0.3)",
+    gap: 6,
+  },
+  downloadRemainingText: {
+    color: "#FF334B",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  downloadCompleteBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(70, 211, 105, 0.12)",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    gap: 6,
+  },
+  downloadCompleteText: {
+    color: "#46D369",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   container: {
     flex: 1,
     backgroundColor: '#0F0F15',
