@@ -4,7 +4,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w185';
 
 export default function CastRow({ cast = [], onSelectActor }) {
-  if (!cast || cast.length === 0) return null;
+  if (!cast || cast.length === 0) {
+    return (
+      <View style={{ paddingHorizontal: 16, marginVertical: 10 }}>
+        <Text style={{ color: '#E50914', fontSize: 13, fontWeight: '600' }}>[Cast data loading or empty]</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

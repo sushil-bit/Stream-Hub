@@ -189,7 +189,8 @@ export default function DetailsScreen({ route, navigation }) {
       const directors = credits.crew ? credits.crew.filter(c => c.job === 'Director') : [];
       const topCast = credits.cast ? credits.cast.slice(0, 15) : [];
 
-      setExtraData({ recommendations, topCast, directors });
+      console.log('[DEBUG_CAST]', { recommendations, topCast, directors }?.credits ? 'Has Credits: ' + { recommendations, topCast, directors }.credits.cast?.length : 'No Credits Key');
+    setExtraData({ recommendations, topCast, directors });
     } catch (err) {
       console.warn('Failed to load extra details:', err);
     } finally {
