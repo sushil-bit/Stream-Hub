@@ -1,5 +1,4 @@
-import { CommonActions } from "@react-navigation/native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,36 +9,37 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function SettingsScreen({ navigation }) {
+export default function SettingsScreen({ onClose, navigation }) {
+  const [defaultTab, setDefaultTab] = useState("all"); // 'all' (Home), 'movie', 'tv'
   const [wifiOnly, setWifiOnly] = useState(true);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
   const [hardwareAccel, setHardwareAccel] = useState(true);
   const [cacheSize, setCacheSize] = useState("38.4 MB");
 
-    const handleBack = () => {
+  useEffect(() => {
+    AsyncStorage.getItem("@streamhub_default_landing").then((val) => {
+      if (val) setDefaultTab(val);
+    });
+  }, []);
+
+  const handleSelectDefaultLanding = async (type) => {
+    setDefaultTab(type);
+    await AsyncStorage.setItem("@streamhub_default_landing", type);
+  };
+
+  const handleBack = () => {
+    if (onClose) {
+      onClose();
+      return;
+    }
     if (navigation?.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
-      return;
-    }
-    const parent = navigation?.getParent ? navigation.getParent() : null;
-    if (parent?.canGoBack && parent.canGoBack()) {
-      parent.goBack();
-      return;
-    }
-    // Safe stack pop/reset fallback without targeting unregistered names
-    try {
-      navigation.dispatch(CommonActions.goBack());
-    } catch (err) {
-      // If at root of history, dispatch to first available route in state
-      const rootState = navigation.getState ? navigation.getState() : null;
-      if (rootState && rootState.routeNames && rootState.routeNames.length > 0) {
-        navigation.navigate(rootState.routeNames[0]);
-      }
     }
   };
 
-  const clearAppCache = async () => {
+  const clearAppCache = () => {
     Alert.alert("Clear Cache", "This will free up cached posters and preview files.", [
       { text: "Cancel", style: "cancel" },
       {
@@ -60,6 +60,38 @@ export default function SettingsScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
+      </View>
+
+      {/* Default App Start Content */}
+      <Text style={styles.sectionHeader}>STARTUP PREFERENCE</Text>
+      <View style={styles.group}>
+        <Text style={styles.selectorSubtitle}>Open automatically on app launch:</Text>
+        <View style={styles.selectorRow}>
+          {[
+            { id: "all", label: "Home (All)", icon: "sparkles" },
+            { id: "movie", label: "Movies", icon: "film" },
+            { id: "tv", label: "Series", icon: "tv" },
+          ].map((item) => {
+            const isSelected = defaultTab === item.id;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.segmentBtn, isSelected && styles.segmentBtnActive]}
+                onPress={() => handleSelectDefaultLanding(item.id)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={16}
+                  color={isSelected ? "#FFFFFF" : "#7E7E8A"}
+                />
+                <Text style={[styles.segmentText, isSelected && styles.segmentTextActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* Playback Settings */}
@@ -98,7 +130,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.row}>
           <View style={styles.rowLabelGroup}>
             <Text style={styles.rowTitle}>Download via Wi-Fi Only</Text>
-            <Text style={styles.rowSubtitle}>Saves cellular data on large downloads</Text>
+            <Text style={styles.rowSubtitle}>Saves mobile data on large video files</Text>
           </View>
           <Switch
             value={wifiOnly}
@@ -162,14 +194,47 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#22222E",
+    padding: 14,
     overflow: "hidden",
+  },
+  selectorSubtitle: {
+    fontSize: 12,
+    color: "#7E7E8A",
+    marginBottom: 12,
+  },
+  selectorRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#0D0C13",
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#252535",
+    gap: 6,
+  },
+  segmentBtnActive: {
+    backgroundColor: "#FF334B",
+    borderColor: "#FF334B",
+  },
+  segmentText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7E7E8A",
+  },
+  segmentTextActive: {
+    color: "#FFFFFF",
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#1F1F2C",
   },
@@ -177,8 +242,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   rowLabelGroup: {
     flex: 1,
