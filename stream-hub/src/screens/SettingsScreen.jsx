@@ -12,6 +12,22 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SettingsScreen({ navigation }) {
+  const handleBack = () => {
+    if (navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    // If in root stack, navigate to parent tab navigator
+    try {
+      navigation.navigate("Main", { screen: "Me" });
+    } catch (e) {
+      try {
+        navigation.navigate("Home");
+      } catch (err) {
+        console.log("No back route found");
+      }
+    }
+  };
   const [wifiOnly, setWifiOnly] = useState(true);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
   const [hardwareAccel, setHardwareAccel] = useState(true);
