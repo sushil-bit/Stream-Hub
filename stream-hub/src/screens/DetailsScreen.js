@@ -94,6 +94,7 @@ export default function DetailsScreen({ route, navigation }) {
     directors: [],
   });
   const [loadingExtras, setLoadingExtras] = useState(false);
+  const [episodeViewMode, setEpisodeViewMode] = useState('grid'); // 'grid' | 'list'
 
 
   useEffect(() => {
