@@ -8,39 +8,39 @@ import {
   Dimensions,
   ActivityIndicator,
   StatusBar,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { normalizeTmdbItem, normalizeJikanItem } from "../utils/mediaNormalizer";
 import UnifiedMediaCard from "../components/UnifiedMediaCard";
 
-const { width } = Dimensions.get("window");
 const TMDB_API_KEY = "e2c349924558593414bcbfca414b2d1d";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
-const HEADER_HEIGHT = 56;
-const TAB_BAR_HEIGHT = 46;
+const HEADER_HEIGHT = 54;
+const TAB_BAR_HEIGHT = 48;
 const TOTAL_TOP_HEIGHT = HEADER_HEIGHT + TAB_BAR_HEIGHT;
 
 const CATEGORIES = [
-  { id: "all", label: "Featured", icon: "sparkles" },
-  { id: "movie", label: "Movies", icon: "film" },
-  { id: "tv", label: "Series", icon: "tv" },
+  { id: "trending", label: "Trending", icon: "flame" },
+  { id: "movie", label: "Movie", icon: "film" },
+  { id: "series", label: "Series", icon: "albums" },
   { id: "anime", label: "Anime", icon: "play-circle" },
+  { id: "tv", label: "TV", icon: "tv" },
 ];
 
 export default function HomeScreen({ navigation }) {
-  const [selectedTab, setSelectedTab] = useState("all");
+  const [selectedTab, setSelectedTab] = useState("trending");
   const [mediaList, setMediaList] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const cacheRef = useRef({});
 
-  // Startup default preference hook
   useEffect(() => {
     AsyncStorage.getItem("@streamhub_default_landing").then((landing) => {
-      if (landing && ["all", "movie", "tv", "anime"].includes(landing)) {
+      if (landing && ["trending", "movie", "series", "anime", "tv"].includes(landing)) {
         setSelectedTab(landing);
       }
     });
@@ -55,28 +55,34 @@ export default function HomeScreen({ navigation }) {
     setLoading(true);
     try {
       let results = [];
-      if (tabId === "anime") {
-        const res = await fetch(`${JIKAN_BASE_URL}/top/anime?filter=airing&limit=24`);
+      if (tabId === "trending") {
+        const res = await fetch(
+          `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_API_KEY}`
+        );
         const json = await res.json();
-        results = (json.data || []).map(normalizeJikanItem).filter(Boolean);
+        results = (json.results || []).map((i) => normalizeTmdbItem(i, i.media_type)).filter(Boolean);
       } else if (tabId === "movie") {
         const res = await fetch(
-          `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`
+          `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_API_KEY}&page=1`
         );
         const json = await res.json();
         results = (json.results || []).map((i) => normalizeTmdbItem(i, "movie")).filter(Boolean);
+      } else if (tabId === "series") {
+        const res = await fetch(
+          `https://api.themoviedb.org/3/tv/top_rated?api_key=${TMDB_API_KEY}&page=1`
+        );
+        const json = await res.json();
+        results = (json.results || []).map((i) => normalizeTmdbItem(i, "tv")).filter(Boolean);
+      } else if (tabId === "anime") {
+        const res = await fetch(`${JIKAN_BASE_URL}/top/anime?filter=bypopularity&limit=24`);
+        const json = await res.json();
+        results = (json.data || []).map(normalizeJikanItem).filter(Boolean);
       } else if (tabId === "tv") {
         const res = await fetch(
           `https://api.themoviedb.org/3/tv/on_the_air?api_key=${TMDB_API_KEY}&page=1`
         );
         const json = await res.json();
         results = (json.results || []).map((i) => normalizeTmdbItem(i, "tv")).filter(Boolean);
-      } else {
-        const res = await fetch(
-          `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_API_KEY}`
-        );
-        const json = await res.json();
-        results = (json.results || []).map((i) => normalizeTmdbItem(i, i.media_type)).filter(Boolean);
       }
 
       cacheRef.current[tabId] = results;
@@ -92,7 +98,6 @@ export default function HomeScreen({ navigation }) {
     fetchData(selectedTab);
   }, [selectedTab, fetchData]);
 
-  // Smooth translateY clamp: hides the brand title but keeps sub-tabs docked at the top
   const headerTranslateY = scrollY.interpolate({
     inputRange: [0, HEADER_HEIGHT],
     outputRange: [0, -HEADER_HEIGHT],
@@ -101,7 +106,7 @@ export default function HomeScreen({ navigation }) {
 
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, HEADER_HEIGHT / 2, HEADER_HEIGHT],
-    outputRange: [1, 0.4, 0],
+    outputRange: [1, 0.3, 0],
     extrapolate: "clamp",
   });
 
@@ -109,14 +114,13 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0D0C13" />
 
-      {/* Collapsible Header + Sticky Sub-Tabs Container */}
+      {/* Top Section: App Title hides away, sub-tabs dock at top */}
       <Animated.View
         style={[
           styles.topContainer,
           { transform: [{ translateY: headerTranslateY }] },
         ]}
       >
-        {/* Top Branding (Hides away on scroll) */}
         <Animated.View style={[styles.mainHeader, { opacity: headerOpacity }]}>
           <View style={styles.logoRow}>
             <View style={styles.logoIcon}>
@@ -128,41 +132,47 @@ export default function HomeScreen({ navigation }) {
             style={styles.searchBtn}
             onPress={() => navigation.navigate("Explore")}
           >
-            <Ionicons name="search-outline" size={20} color="#DDDDE8" />
+            <Ionicons name="search-outline" size={19} color="#DDDDE8" />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Categories Tab Strip (Movie / Series / Anime / TV) */}
+        {/* 5 Tabs in Exact Order: Trending, Movie, Series, Anime, TV */}
         <View style={styles.tabStrip}>
-          {CATEGORIES.map((cat) => {
-            const isActive = selectedTab === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[styles.tabItem, isActive && styles.tabItemActive]}
-                onPress={() => setSelectedTab(cat.id)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={cat.icon}
-                  size={14}
-                  color={isActive ? "#FF334B" : "#7E7E8A"}
-                />
-                <Text
-                  style={[
-                    styles.tabItemText,
-                    isActive && styles.tabItemTextActive,
-                  ]}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {CATEGORIES.map((cat) => {
+              const isActive = selectedTab === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[styles.tabItem, isActive && styles.tabItemActive]}
+                  onPress={() => setSelectedTab(cat.id)}
+                  activeOpacity={0.7}
                 >
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Ionicons
+                    name={cat.icon}
+                    size={14}
+                    color={isActive ? "#FF334B" : "#7E7E8A"}
+                  />
+                  <Text
+                    style={[
+                      styles.tabItemText,
+                      isActive && styles.tabItemTextActive,
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </Animated.View>
 
-      {/* Main Feed Content */}
+      {/* Content List */}
       {loading && mediaList.length === 0 ? (
         <View style={styles.centerLoader}>
           <ActivityIndicator size="large" color="#FF334B" />
@@ -211,7 +221,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     backgroundColor: "#0D0C13",
-    paddingTop: 44, // Safe status bar padding
+    paddingTop: 44,
   },
   mainHeader: {
     height: HEADER_HEIGHT,
@@ -237,7 +247,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: 0.3,
   },
   searchBtn: {
     width: 36,
@@ -251,20 +260,21 @@ const styles = StyleSheet.create({
   },
   tabStrip: {
     height: TAB_BAR_HEIGHT,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#1B1A24",
     backgroundColor: "#0D0C13",
+    justifyContent: "center",
+  },
+  scrollContent: {
+    paddingHorizontal: 12,
+    alignItems: "center",
+    gap: 8,
   },
   tabItem: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 7,
+    paddingVertical: 6,
+    paddingHorizontal: 13,
     borderRadius: 8,
     backgroundColor: "#16161F",
     gap: 5,
