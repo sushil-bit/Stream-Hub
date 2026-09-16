@@ -374,6 +374,14 @@ export default function DetailsScreen({ route, navigation }) {
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.heroDownloadTriggerBtn}
+              onPress={() => setDownloadConfigVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="download-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.heroDownloadTriggerText}>Download</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.bookmarkBtn}
@@ -730,6 +738,24 @@ export default function DetailsScreen({ route, navigation }) {
   );
 }
 const styles = StyleSheet.create({
+  heroDownloadTriggerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#20202E',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#37374D',
+    marginLeft: 10,
+    gap: 6,
+  },
+  heroDownloadTriggerText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   openDownloadConfigBtn: {
     flexDirection: 'row',
     alignItems: 'center',
