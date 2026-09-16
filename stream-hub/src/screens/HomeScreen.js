@@ -29,7 +29,18 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
 export default function HomeScreen({ navigation }) {
- navigation }) {
+  useEffect(() => {
+    AsyncStorage.getItem("@streamhub_default_landing").then((landing) => {
+      if (landing === "movie" || landing === "tv") {
+        if (typeof setSelectedCategory === "function") {
+          setSelectedCategory(landing);
+        } else if (typeof setActiveTab === "function") {
+          setActiveTab(landing);
+        }
+      }
+    });
+  }, []);
+
   const [trending, setTrending] = useState([]);
   const [anime, setAnime] = useState([]);
   const [continueWatching, setContinueWatching] = useState([]);
