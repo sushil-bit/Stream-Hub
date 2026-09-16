@@ -405,7 +405,9 @@ export default function DetailsScreen({ route, navigation }) {
           <CastRow
         cast={extraData?.credits?.cast || extraData?.cast || []}
         crew={extraData?.credits?.crew || extraData?.crew || []}
-        onSelectActor={handleActorPress}
+        onSelectActor={(actor) => {
+          if (typeof setSelectedActor === 'function') setSelectedActor(actor);
+        }}
       />
       {isTv && (
         <View style={styles.tvSectionContainer}>
