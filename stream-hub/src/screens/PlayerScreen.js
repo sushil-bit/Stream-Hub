@@ -15,7 +15,7 @@ import * as ScreenOrientation from "expo-screen-orientation";
 const SERVERS = [
   {
     id: "vidlink",
-    name: "VidLink",
+    name: "VidLink (Fast)",
     getUrl: (id, season, episode, isTv) =>
       isTv
         ? "https://vidlink.pro/tv/" + id + "/" + season + "/" + episode
@@ -30,19 +30,25 @@ const SERVERS = [
         : "https://vidsrc.cc/v2/embed/movie/" + id,
   },
   {
-    id: "embedsu",
-    name: "EmbedSu",
+    id: "twoembed",
+    name: "2Embed",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? "https://embed.su/embed/tv/" + id + "/" + season + "/" + episode
-        : "https://embed.su/embed/movie/" + id,
+        ? "https://www.2embed.cc/embedtv/" + id + "&s=" + season + "&e=" + episode
+        : "https://www.2embed.cc/embed/" + id,
+  },
+  {
+    id: "vidsrc_xyz",
+    name: "VidSrc XYZ",
+    getUrl: (id, season, episode, isTv) =>
+      isTv
+        ? "https://vidsrc.xyz/embed/tv?tmdb=" + id + "&season=" + season + "&episode=" + episode
+        : "https://vidsrc.xyz/embed/movie?tmdb=" + id,
   },
 ];
 
 export default function PlayerScreen({ route, navigation }) {
   const params = route?.params || {};
-  
-  // Extract media object whether passed as { media }, { item }, or top-level params
   const mediaObj = params.media || params.item || params;
 
   const resolvedMediaId =
@@ -62,6 +68,7 @@ export default function PlayerScreen({ route, navigation }) {
   const episodeNumber = params.episodeNumber || 1;
 
   const [activeServerIndex, setActiveServerIndex] = useState(0);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     async function lockLandscape() {
@@ -101,15 +108,17 @@ export default function PlayerScreen({ route, navigation }) {
     return true;
   };
 
+  const handleSwitchServer = (idx) => {
+    setHasError(false);
+    setActiveServerIndex(idx);
+  };
+
   if (!resolvedMediaId) {
     return (
       <View style={styles.errorContainer}>
         <StatusBar hidden />
         <Ionicons name="alert-circle-outline" size={48} color="#FF334B" />
         <Text style={styles.errorText}>Missing Media Identifier</Text>
-        <Text style={styles.errorSubText}>
-          Params: {JSON.stringify(params)}
-        </Text>
         <TouchableOpacity
           style={styles.errorButton}
           onPress={() => navigation.goBack()}
@@ -132,25 +141,47 @@ export default function PlayerScreen({ route, navigation }) {
       <StatusBar hidden />
 
       <View style={styles.playerContainer}>
-        <WebView
-          key={currentUrl}
-          source={{ uri: currentUrl }}
-          style={styles.webview}
-          onShouldStartLoadWithRequest={handleShouldStartLoad}
-          setSupportMultipleWindows={false}
-          allowsFullscreenVideo={true}
-          originWhitelist={["*"]}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          renderLoading={() => (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF334B" />
-            </View>
-          )}
-          startInLoadingState={true}
-        />
+        {hasError ? (
+          <View style={styles.fallbackOverlay}>
+            <Ionicons name="cloud-offline-outline" size={46} color="#FF334B" />
+            <Text style={styles.fallbackTitle}>Server Unavailable</Text>
+            <Text style={styles.fallbackSub}>
+              {SERVERS[activeServerIndex].name} failed to respond. Switch to another server above.
+            </Text>
+            <TouchableOpacity
+              style={styles.retryBtn}
+              onPress={() => {
+                const next = (activeServerIndex + 1) % SERVERS.length;
+                handleSwitchServer(next);
+              }}
+            >
+              <Text style={styles.retryBtnText}>Try Next Server</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <WebView
+            key={currentUrl}
+            source={{ uri: currentUrl }}
+            style={styles.webview}
+            onShouldStartLoadWithRequest={handleShouldStartLoad}
+            onError={() => setHasError(true)}
+            setSupportMultipleWindows={false}
+            allowsFullscreenVideo={true}
+            originWhitelist={["*"]}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            renderLoading={() => (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#FF334B" />
+              </View>
+            )}
+            startInLoadingState={true}
+          />
+        )}
       </View>
 
+      {/* Floating Top Control Overlay */}
       <SafeAreaView style={styles.topBarOverlay} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.backCircle}
@@ -166,7 +197,7 @@ export default function PlayerScreen({ route, navigation }) {
               <TouchableOpacity
                 key={server.id}
                 style={[styles.serverChip, isActive && styles.serverChipActive]}
-                onPress={() => setActiveServerIndex(idx)}
+                onPress={() => handleSwitchServer(idx)}
               >
                 <Text
                   style={[
@@ -203,6 +234,36 @@ const styles = StyleSheet.create({
     backgroundColor: "#0A0A0E",
     justifyContent: "center",
     alignItems: "center",
+  },
+  fallbackOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0A0A0E",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 30,
+    gap: 10,
+  },
+  fallbackTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  fallbackSub: {
+    color: "#8E8E93",
+    fontSize: 13,
+    textAlign: "center",
+  },
+  retryBtn: {
+    marginTop: 10,
+    backgroundColor: "#FF334B",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  retryBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 13,
   },
   topBarOverlay: {
     position: "absolute",
@@ -255,17 +316,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 14,
-    paddingHorizontal: 20,
   },
   errorText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
-  },
-  errorSubText: {
-    color: "#8E8E93",
-    fontSize: 11,
-    textAlign: "center",
   },
   errorButton: {
     backgroundColor: "#1C1C26",
