@@ -25,4 +25,33 @@ export const PROVIDERS = [
                                                                                                                 : `https://multiembed.mov/?video_id=${id}&tmdb=1`,
                                                                                                                   },
                                                                                                                   ];
-                                                                                                                  
+
+                                                                                                                  // In PlayerScreen.js
+                                                                                                                  const [aspectRatio, setAspectRatio] = useState('contain'); // 'contain' | 'cover'
+
+                                                                                                                  const getInjectedCSS = (mode) => `
+                                                                                                                    (function() {
+                                                                                                                        const style = document.createElement('style');
+                                                                                                                            style.id = 'aspect-ratio-override';
+                                                                                                                                const oldStyle = document.getElementById('aspect-ratio-override');
+                                                                                                                                    if (oldStyle) oldStyle.remove();
+
+                                                                                                                                        style.innerHTML = \`
+                                                                                                                                              video {
+                                                                                                                                                      object-fit: ${mode === 'cover' ? 'cover !important' : 'contain !important'};
+                                                                                                                                                              width: 100vw !important;
+                                                                                                                                                                      height: 100vh !important;
+                                                                                                                                                                            }
+                                                                                                                                                                                \`;
+                                                                                                                                                                                    document.head.appendChild(style);
+                                                                                                                                                                                      })();
+                                                                                                                                                                                        true;
+                                                                                                                                                                                        `;
+
+                                                                                                                                                                                        // Toggle button handler
+                                                                                                                                                                                        const toggleAspectRatio = () => {
+                                                                                                                                                                                          const nextMode = aspectRatio === 'contain' ? 'cover' : 'contain';
+                                                                                                                                                                                            setAspectRatio(nextMode);
+                                                                                                                                                                                              webViewRef.current?.injectJavaScript(getInjectedCSS(nextMode));
+                                                                                                                                                                                              };
+                                                                                                                                                                                              
