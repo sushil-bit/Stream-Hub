@@ -27,6 +27,31 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BACKDROP_HEIGHT = SCREEN_WIDTH * 1.1;
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
+const fetchMediaDetailsExtra = async (type, id) => {
+  try {
+    const TMDB_KEY = "2c46288716a18f8861fbac2907798388";
+    const [recsRes, credsRes] = await Promise.allSettled([
+      fetch(`https://api.themoviedb.org/3/${type}/${id}/recommendations?api_key=${TMDB_KEY}&page=1`),
+      fetch(`https://api.themoviedb.org/3/${type}/${id}/credits?api_key=${TMDB_KEY}`),
+    ]);
+
+    const recommendations = recsRes.status === 'fulfilled'
+      ? (await recsRes.value.json()).results || []
+      : [];
+
+    const credits = credsRes.status === 'fulfilled'
+      ? await credsRes.value.json()
+      : { cast: [], crew: [] };
+
+    const directors = credits.crew ? credits.crew.filter((c) => c.job === 'Director') : [];
+    const topCast = credits.cast ? credits.cast.slice(0, 15) : [];
+
+    return { recommendations, topCast, directors };
+  } catch (err) {
+    return { recommendations: [], topCast: [], directors: [] };
+  }
+};
+
 export default function DetailsScreen({ route, navigation }) {
   const media = route?.params?.media || {};
   const isTv =
@@ -85,7 +110,7 @@ export default function DetailsScreen({ route, navigation }) {
     setLoadingExtras(true);
     try {
       const type = isTv ? 'tv' : 'movie';
-      const data = await fetchMediaDetailsExtra(type, media.id);
+      const data = await (type, media.id);
       setExtraData(data);
     } catch (err) {
       console.warn('Failed to load extra details:', err);
