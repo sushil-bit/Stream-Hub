@@ -60,12 +60,30 @@ export default function PlayerScreen({ route, navigation }) {
     }
   };
 
+  
+  const handleShouldStartLoad = (request) => {
+    const { url } = request;
+    // Allow standard internal schemes without invoking device Linking
+    if (url.startsWith("data:") || url.startsWith("about:") || url.startsWith("blob:")) {
+      return true;
+    }
+    // Block intent:, market:, and external popup ad redirects
+    if (url.startsWith("intent:") || url.startsWith("market:") || url.startsWith("android-app:")) {
+      return false;
+    }
+    return true;
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar hidden />
 
       <View style={styles.playerContainer}>
         <WebView
+        onShouldStartLoadWithRequest={handleShouldStartLoad}
+        setSupportMultipleWindows={false}
+        allowsFullscreenVideo={true}
+        originWhitelist={["*"]}
           key={activeServer + "-" + season + "-" + episode}
           source={{
             uri: getEmbedUrl(),
