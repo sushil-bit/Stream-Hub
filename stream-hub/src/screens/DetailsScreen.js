@@ -29,7 +29,10 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BACKDROP_HEIGHT = SCREEN_WIDTH * 1.1;
 const IMAGE_URL = IMAGE_BASE_URL || "https://image.tmdb.org/t/p/w500";
 
-const fetchMediaDetailsExtra = async (type, id) => {
+export default function DetailsScreen({ route, navigation }) {
+  const [extraData, setExtraData] = useState(null);
+
+  const fetchMediaDetailsExtra = async (type, id) => {
     try {
       const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
       const endpoint = type === 'tv' ? 'tv' : 'movie';
@@ -41,8 +44,6 @@ const fetchMediaDetailsExtra = async (type, id) => {
       console.warn('Error fetching media extras:', e);
     }
   };
-
-export default function DetailsScreen({ route, navigation }) {
   console.log('[DEBUG Component Imports]', {
     CastRow: typeof CastRow,
     RecommendationRow: typeof RecommendationRow,
@@ -88,12 +89,7 @@ export default function DetailsScreen({ route, navigation }) {
 
 
 
-    const [extraData, setExtraData] = useState({
-    recommendations: [],
-    topCast: [],
-    directors: [],
-  });
-  const [loadingExtras, setLoadingExtras] = useState(false);
+    const [loadingExtras, setLoadingExtras] = useState(false);
   const [episodeViewMode, setEpisodeViewMode] = useState('grid');
   const [seasonLayoutMode, setSeasonLayoutMode] = useState('dropdown'); // 'dropdown' | 'slideable'
   const [seasonModalVisible, setSeasonModalVisible] = useState(false);
