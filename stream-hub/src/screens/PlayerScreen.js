@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
+  ScrollView,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -14,36 +16,36 @@ import LoadingPanel from "../components/Common/LoadingPanel";
 
 const SERVERS = [
   {
-    id: "vidsrc_pm",
-    name: "VidSrc (Primary)",
+    id: "vidsrc_cc",
+    name: "VidSrc CC",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? "https://vidsrc.pm/embed/tv/" + id + "/" + season + "/" + episode
-        : "https://vidsrc.pm/embed/movie/" + id,
+        ? `https://vidsrc.cc/v2/embed/tv/${id}/${season}/${episode}`
+        : `https://vidsrc.cc/v2/embed/movie/${id}`,
   },
   {
     id: "vidlink",
     name: "VidLink",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? "https://vidlink.pro/tv/" + id + "/" + season + "/" + episode + "?primaryColor=ff334b"
-        : "https://vidlink.pro/movie/" + id + "?primaryColor=ff334b",
+        ? `https://vidlink.pro/tv/${id}/${season}/${episode}?primaryColor=ff334b`
+        : `https://vidlink.pro/movie/${id}?primaryColor=ff334b`,
   },
   {
-    id: "vidsrc_xyz",
-    name: "VidSrc XYZ",
+    id: "multiembed",
+    name: "MultiEmbed",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? "https://vidsrc.xyz/embed/tv?tmdb=" + id + "&season=" + season + "&episode=" + episode
-        : "https://vidsrc.xyz/embed/movie?tmdb=" + id,
+        ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`
+        : `https://multiembed.mov/?video_id=${id}&tmdb=1`,
   },
   {
     id: "twoembed",
     name: "2Embed",
     getUrl: (id, season, episode, isTv) =>
       isTv
-        ? "https://www.2embed.cc/embedtv/" + id + "&s=" + season + "&e=" + episode
-        : "https://www.2embed.cc/embed/" + id,
+        ? `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`
+        : `https://www.2embed.cc/embed/${id}`,
   },
 ];
 
@@ -61,16 +63,25 @@ export default function PlayerScreen({ route, navigation }) {
     mediaObj.media_type === "tv" ||
     params.isTv ||
     params.mediaType === "tv" ||
-    params.seasonNumber
+    params.seasonNumber ||
+    params.episodes?.length
   );
 
-  const seasonNumber = params.seasonNumber || 1;
-  const episodeNumber = params.episodeNumber || 1;
-
   const [activeServerIndex, setActiveServerIndex] = useState(0);
+  const [currentSeason, setCurrentSeason] = useState(params.seasonNumber || 1);
+  const [currentEpisode, setCurrentEpisode] = useState(params.episodeNumber || 1);
+  const [showEpisodesDrawer, setShowEpisodesDrawer] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const webViewRef = useRef(null);
+
+  // Generate 24 placeholder episodes if not explicitly passed from details
+  const episodesList = params.episodes?.length
+    ? params.episodes
+    : Array.from({ length: 24 }, (_, i) => ({
+        episode_number: i + 1,
+        name: `Episode ${i + 1}`,
+      }));
 
   useEffect(() => {
     async function lockLandscape() {
@@ -93,18 +104,19 @@ export default function PlayerScreen({ route, navigation }) {
 
   const handleShouldStartLoad = (request) => {
     const { url } = request;
-    // Allow internal payloads and active stream mirrors
+    // Permit safe internal origins & active media CDNs
     if (
       url.startsWith("data:") ||
       url.startsWith("about:") ||
       url.startsWith("blob:") ||
       url.includes("vidlink") ||
       url.includes("vidsrc") ||
+      url.includes("multiembed") ||
       url.includes("2embed")
     ) {
       return true;
     }
-    // Block intent redirects, app store redirects, and aggressive popunder tabs
+    // Block popup ads, intent schemes, external apps
     if (
       url.startsWith("intent:") ||
       url.startsWith("market:") ||
@@ -120,6 +132,12 @@ export default function PlayerScreen({ route, navigation }) {
     setHasError(false);
     setIsLoading(true);
     setActiveServerIndex(idx);
+  };
+
+  const handleSelectEpisode = (epNum) => {
+    setCurrentEpisode(epNum);
+    setShowEpisodesDrawer(false);
+    setIsLoading(true);
   };
 
   if (!resolvedMediaId) {
@@ -140,8 +158,8 @@ export default function PlayerScreen({ route, navigation }) {
 
   const currentUrl = SERVERS[activeServerIndex].getUrl(
     resolvedMediaId,
-    seasonNumber,
-    episodeNumber,
+    currentSeason,
+    currentEpisode,
     isTv
   );
 
@@ -153,9 +171,9 @@ export default function PlayerScreen({ route, navigation }) {
         {hasError ? (
           <View style={styles.fallbackOverlay}>
             <Ionicons name="cloud-offline-outline" size={46} color="#FF334B" />
-            <Text style={styles.fallbackTitle}>Playback Blocked or Offline</Text>
+            <Text style={styles.fallbackTitle}>Server Blocked or Offline</Text>
             <Text style={styles.fallbackSub}>
-              {SERVERS[activeServerIndex].name} failed to stream. Choose another provider above.
+              {SERVERS[activeServerIndex].name} failed. Choose an alternative mirror above.
             </Text>
             <TouchableOpacity
               style={styles.retryBtn}
@@ -175,8 +193,8 @@ export default function PlayerScreen({ route, navigation }) {
               source={{
                 uri: currentUrl,
                 headers: {
-                  Referer: "https://vidsrc.pm/",
-                  Origin: "https://vidsrc.pm",
+                  Referer: "https://vidsrc.cc/",
+                  Origin: "https://vidsrc.cc",
                 },
               }}
               style={styles.webview}
@@ -199,23 +217,38 @@ export default function PlayerScreen({ route, navigation }) {
             />
             {isLoading ? (
               <LoadingPanel
-                message={"Buffering " + SERVERS[activeServerIndex].name}
-                subMessage="Bypassing ads & fetching media stream..."
+                message={`Connecting to ${SERVERS[activeServerIndex].name}...`}
+                subMessage={isTv ? `S${currentSeason} : E${currentEpisode} · Buffering Stream` : "Buffering Movie Stream..."}
               />
             ) : null}
           </>
         )}
       </View>
 
-      {/* Floating Header Controls */}
+      {/* Floating Top Controls */}
       <SafeAreaView style={styles.topBarOverlay} pointerEvents="box-none">
-        <TouchableOpacity
-          style={styles.backCircle}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={styles.leftGroup}>
+          <TouchableOpacity
+            style={styles.backCircle}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
 
+          {isTv && (
+            <TouchableOpacity
+              style={styles.episodesToggleBtn}
+              onPress={() => setShowEpisodesDrawer(!showEpisodesDrawer)}
+            >
+              <Ionicons name="layers-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.episodesToggleText}>
+                S{currentSeason}:E{currentEpisode}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Server Selectors */}
         <View style={styles.serverRow}>
           {SERVERS.map((server, idx) => {
             const isActive = activeServerIndex === idx;
@@ -238,6 +271,56 @@ export default function PlayerScreen({ route, navigation }) {
           })}
         </View>
       </SafeAreaView>
+
+      {/* Horizontal Drawer for Quick Episode Selection */}
+      {isTv && showEpisodesDrawer && (
+        <View style={styles.drawerContainer}>
+          <View style={styles.drawerHeader}>
+            <Text style={styles.drawerTitle}>Select Episode</Text>
+            <TouchableOpacity onPress={() => setShowEpisodesDrawer(false)}>
+              <Ionicons name="close" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={episodesList}
+            keyExtractor={(item) => String(item.episode_number)}
+            contentContainerStyle={styles.episodeListContainer}
+            renderItem={({ item }) => {
+              const epNum = item.episode_number;
+              const isSelected = currentEpisode === epNum;
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.episodeCard,
+                    isSelected && styles.episodeCardSelected,
+                  ]}
+                  onPress={() => handleSelectEpisode(epNum)}
+                >
+                  <Text
+                    style={[
+                      styles.episodeCardNumber,
+                      isSelected && styles.episodeCardNumberSelected,
+                    ]}
+                  >
+                    EP {epNum}
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.episodeCardName,
+                      isSelected && styles.episodeCardNameSelected,
+                    ]}
+                  >
+                    {item.name || `Episode ${epNum}`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -296,6 +379,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     zIndex: 999,
   },
+  leftGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   backCircle: {
     width: 40,
     height: 40,
@@ -305,6 +393,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.12)",
+  },
+  episodesToggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(10, 10, 14, 0.75)",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+  },
+  episodesToggleText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   serverRow: {
     flexDirection: "row",
@@ -329,6 +433,65 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   serverChipTextActive: {
+    color: "#FFFFFF",
+  },
+  drawerContainer: {
+    position: "absolute",
+    bottom: 16,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(14, 14, 20, 0.95)",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    zIndex: 999,
+  },
+  drawerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  drawerTitle: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  episodeListContainer: {
+    gap: 8,
+  },
+  episodeCard: {
+    width: 90,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  episodeCardSelected: {
+    backgroundColor: "#FF334B",
+    borderColor: "#FF334B",
+  },
+  episodeCardNumber: {
+    color: "#8E8E93",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  episodeCardNumberSelected: {
+    color: "#FFFFFF",
+  },
+  episodeCardName: {
+    color: "#AAAAAA",
+    fontSize: 10,
+    marginTop: 2,
+  },
+  episodeCardNameSelected: {
     color: "#FFFFFF",
   },
   errorContainer: {
