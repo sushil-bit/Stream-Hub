@@ -139,7 +139,7 @@ export default function DetailsScreen({ route, navigation }) {
 
   useEffect(() => {
     if (media?.id) {
-      const type = media.media_type || (media.title ? 'movie' : 'tv');
+      const type = media?.media_type === 'tv' || (!media?.title && !!media?.name) ? 'tv' : 'movie';
       fetchMediaDetailsExtra(type, media.id);
     }
     if (isTv && media?.id) {
@@ -402,7 +402,11 @@ export default function DetailsScreen({ route, navigation }) {
           </View>
 
           {/* Seasons & Episodes Section (Only rendered for TV Shows & Anime) */}
-          <CastRow cast={extraData?.credits?.cast || []} crew={extraData?.credits?.crew || []} onSelectActor={handleActorPress} />
+          <CastRow
+        cast={extraData?.credits?.cast || extraData?.cast || []}
+        crew={extraData?.credits?.crew || extraData?.crew || []}
+        onSelectActor={handleActorPress}
+      />
       {isTv && (
         <View style={styles.tvSectionContainer}>
           {/* Seasons Header + Layout Mode Toggle (Dropdown vs Slideable) */}
