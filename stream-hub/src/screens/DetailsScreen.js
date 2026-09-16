@@ -365,45 +365,49 @@ export default function DetailsScreen({ route, navigation }) {
           <CastRow cast={extraData.topCast} />
       {isTv && (
         <View style={styles.tvSectionContainer}>
-          {/* Season Dropdown Button */}
-          <View style={styles.seasonDropdownRow}>
-            <TouchableOpacity
-              style={styles.seasonDropdownButton}
-              onPress={() => setSeasonModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.seasonDropdownText}>
-                {seasons.find(s => s.season_number === selectedSeason)?.name || `Season ${selectedSeason}`}
-              </Text>
-              <Ionicons name="chevron-down" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Episodes Header + Grid/List Toggle */}
-          <View style={styles.episodesHeaderRow}>
-            <Text style={styles.sectionHeaderTitle}>Episodes</Text>
-            <View style={styles.viewToggleGroup}>
+          {/* Dual Season Layout: Dropdown Button + Slideable Pills */}
+          <View style={styles.seasonSectionWrapper}>
+            <View style={styles.seasonHeaderBar}>
               <TouchableOpacity
-                style={[styles.toggleBtn, episodeViewMode === 'grid' && styles.toggleBtnActive]}
-                onPress={() => setEpisodeViewMode('grid')}
+                style={styles.seasonDropdownTrigger}
+                onPress={() => setSeasonModalVisible(true)}
+                activeOpacity={0.7}
               >
-                <Ionicons
-                  name="grid-outline"
-                  size={18}
-                  color={episodeViewMode === 'grid' ? '#FFFFFF' : '#888888'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleBtn, episodeViewMode === 'list' && styles.toggleBtnActive]}
-                onPress={() => setEpisodeViewMode('list')}
-              >
-                <Ionicons
-                  name="list-outline"
-                  size={18}
-                  color={episodeViewMode === 'list' ? '#FFFFFF' : '#888888'}
-                />
+                <Text style={styles.seasonDropdownLabel}>
+                  {seasons.find(s => s.season_number === selectedSeason)?.name || `Season ${selectedSeason}`}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.seasonPillScroller}
+            >
+              {(seasons && seasons.length > 0
+                ? seasons.filter(s => s.season_number > 0)
+                : Array.from({ length: media?.number_of_seasons || 1 }, (_, i) => ({
+                    season_number: i + 1,
+                    name: `Season ${i + 1}`
+                  }))
+              ).map((s) => {
+                const sNum = s.season_number;
+                const isSelected = selectedSeason === sNum;
+                return (
+                  <TouchableOpacity
+                    key={sNum}
+                    style={[styles.seasonPillItem, isSelected && styles.seasonPillItemActive]}
+                    onPress={() => setSelectedSeason(sNum)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.seasonPillText, isSelected && styles.seasonPillTextActive]}>
+                      Season {sNum}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
 
           {/* Episode List Rendering */}
@@ -525,6 +529,56 @@ export default function DetailsScreen({ route, navigation }) {
   }
 
   const styles = StyleSheet.create({
+  seasonSectionWrapper: {
+    marginBottom: 14,
+  },
+  seasonHeaderBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  seasonDropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E26',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2F2F3D',
+    gap: 6,
+  },
+  seasonDropdownLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  seasonPillScroller: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 16,
+  },
+  seasonPillItem: {
+    backgroundColor: '#181820',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#282836',
+  },
+  seasonPillItemActive: {
+    backgroundColor: '#E50914',
+    borderColor: '#E50914',
+  },
+  seasonPillText: {
+    color: '#8E8E9F',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  seasonPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   seasonDropdownRow: {
     marginBottom: 16,
     alignItems: 'flex-start',
