@@ -66,43 +66,45 @@ export default function DetailsScreen({ route, navigation }) {
   const [extraData, setExtraData] = useState(null);
 
   
-    const fetchMediaDetailsExtra = async (type, id) => {
-    // 1. Guard against missing or malformed IDs
+      const fetchMediaDetailsExtra = async (type, id) => {
     if (!id || id === "undefined" || id === "null" || isNaN(Number(id))) {
-      console.log("[DetailsScreen] Skipping TMDB credits fetch for non-numeric/custom ID:", id);
       return;
     }
 
-    try {
-      const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
-      const mediaType = (type === "tv" || type === "series") ? "tv" : "movie";
-      const url = `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,recommendations`;
+    const TMDB_KEY = "fb2e44c3e763e38d9214c5266987acf3";
+    let primaryType = (type === "tv" || type === "series") ? "tv" : "movie";
+    let secondaryType = primaryType === "tv" ? "movie" : "tv";
 
+    const tryFetch = async (targetType) => {
+      const url = `https://api.themoviedb.org/3/${targetType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,recommendations`;
       const res = await fetch(url);
+      if (!res.ok) return null;
+      const text = await res.text();
+      if (!text.trim().startsWith("{")) return null;
+      return JSON.parse(text);
+    };
 
-      if (!res.ok) {
-        console.warn(`[DetailsScreen] TMDB fetch failed (${res.status}):`, url);
-        return;
+    try {
+      // 1. Try primary type
+      let data = await tryFetch(primaryType);
+
+      // 2. If TMDB 500 or 404, fallback to secondary type automatically
+      if (!data) {
+        data = await tryFetch(secondaryType);
       }
 
-      const rawText = await res.text();
-      if (!rawText.trim().startsWith("{") && !rawText.trim().startsWith("[")) {
-        console.warn("[DetailsScreen] Non-JSON payload received:", rawText.slice(0, 100));
-        return;
+      if (data) {
+        setExtraData(prev => ({
+          ...(prev || {}),
+          ...data,
+          credits: {
+            cast: data?.credits?.cast || [],
+            crew: data?.credits?.crew || [],
+          },
+        }));
       }
-
-      const data = JSON.parse(rawText);
-
-      setExtraData(prev => ({
-        ...(prev || {}),
-        ...data,
-        credits: {
-          cast: data?.credits?.cast || [],
-          crew: data?.credits?.crew || [],
-        },
-      }));
     } catch (e) {
-      console.warn("Unified media fetch error caught safely:", e.message);
+      console.warn("Media extras fetch caught:", e.message);
     }
   };
 
