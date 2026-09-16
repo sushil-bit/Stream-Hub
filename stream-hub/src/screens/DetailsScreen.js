@@ -55,8 +55,7 @@ const fetchMediaDetailsExtra = async (type, id) => {
   }
 };
 
-export default function DetailsScreen({
-
+export default function DetailsScreen({ route, navigation }) {
   console.log('[DEBUG Component Imports]', {
     CastRow: typeof CastRow,
     RecommendationRow: typeof RecommendationRow,
@@ -67,7 +66,6 @@ export default function DetailsScreen({
     LinearGradient: typeof LinearGradient,
     SafeAreaView: typeof SafeAreaView
   });
- route, navigation }) {
   const media = route?.params?.media || {};
   const isTv =
     media.media_type === "tv" || media.isAnime || !!media.first_air_date;
