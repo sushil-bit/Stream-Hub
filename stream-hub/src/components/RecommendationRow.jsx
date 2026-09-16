@@ -20,7 +20,7 @@ export const RecommendationRow = ({ items, type, navigation }) => {
             style={styles.card}
             activeOpacity={0.7}
             onPress={() => {
-              navigation.push('Details', { media: item, id: item.id, type: item.media_type || type });
+              navigation.push('DetailsScreen', { media: item, id: item.id, type: item.media_type || type });
             }}
           >
             <Image
