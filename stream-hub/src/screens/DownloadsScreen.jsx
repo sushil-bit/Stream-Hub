@@ -1,3 +1,12 @@
+
+const formatBytes = (bytes) => {
+  if (!bytes || bytes === 0) return "0 MB";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -20,9 +29,12 @@ export default function DownloadsScreen({ navigation }) {
       const stored = await AsyncStorage.getItem("@stream_downloads");
       const downloadMap = stored ? JSON.parse(stored) : {};
 
+      
       const grouped = {};
       Object.values(downloadMap).forEach((item) => {
         const key = item.mediaTitle || item.title || "Uncategorized";
+        const itemBytes = item.sizeBytes || (item.resolution === "1080p" ? 1400000000 : item.resolution === "480p" ? 350000000 : 750000000);
+        
         if (!grouped[key]) {
           grouped[key] = {
             folderKey: key,
@@ -31,10 +43,12 @@ export default function DownloadsScreen({ navigation }) {
             type: item.type || "movie",
             mediaId: item.mediaId || item.id,
             totalCount: item.totalEpisodes || null,
+            totalSizeBytes: 0,
             items: [],
           };
         }
-        grouped[key].items.push(item);
+        grouped[key].totalSizeBytes += itemBytes;
+        grouped[key].items.push({ ...item, sizeBytes: itemBytes });
       });
 
       setFolders(Object.values(grouped));
@@ -101,7 +115,7 @@ export default function DownloadsScreen({ navigation }) {
             </Text>
             <Text style={styles.folderSubtitle}>
               {downloadedCount} {downloadedCount === 1 ? "file" : "files"}
-              {item.totalCount ? ` / ${item.totalCount} total` : ""}
+              {item.totalCount ? ` / ${item.totalCount} total` : ""} • {formatBytes(item.totalSizeBytes)}
             </Text>
           </View>
 
@@ -140,8 +154,10 @@ export default function DownloadsScreen({ navigation }) {
                   <Text style={styles.fileName} numberOfLines={1}>
                     {file.name || `Episode ${file.episodeNumber || idx + 1}`}
                   </Text>
+                  
                   <Text style={styles.fileMeta}>
-                    {file.resolution || "720p"} • {file.size || "Downloaded"}
+                    {file.resolution || "720p"} • {formatBytes(file.sizeBytes)}
+                    {file.status === "downloading" ? ` • Downloading (${Math.round((file.progress || 0) * 100)}%)` : " • Completed"}
                   </Text>
                 </View>
 

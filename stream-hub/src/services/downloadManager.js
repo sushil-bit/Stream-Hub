@@ -1,3 +1,24 @@
+
+export const estimateSizeInBytes = (resolution = "720p", durationMinutes = 45) => {
+  const bitrateMap = {
+    "1080p": 3500 * 1024, // ~3.5 Mbps
+    "720p": 1800 * 1024,  // ~1.8 Mbps
+    "480p": 800 * 1024,   // ~800 Kbps
+    "360p": 450 * 1024,   // ~450 Kbps
+  };
+  const bps = bitrateMap[resolution] || bitrateMap["720p"];
+  return Math.round((bps / 8) * (durationMinutes * 60));
+};
+
+export const formatBytes = (bytes, decimals = 1) => {
+  if (!bytes || bytes === 0) return "0 MB";
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+};
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DOWNLOADS_KEY = '@streamhub_offline_downloads';
