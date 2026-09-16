@@ -117,7 +117,7 @@ export default function DetailsScreen({ route, navigation }) {
   const [episodeViewMode, setEpisodeViewMode] = useState('grid');
   const [seasonLayoutMode, setSeasonLayoutMode] = useState('dropdown'); // 'dropdown' | 'slideable'
   const [seasonModalVisible, setSeasonModalVisible] = useState(false);
-  const [selectedActor, setSelectedActor] = useState(null);
+  
   const [downloadMap, setDownloadMap] = useState({});
   const [downloadConfigVisible, setDownloadConfigVisible] = useState(false);
 
