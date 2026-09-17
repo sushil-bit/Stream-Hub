@@ -22,7 +22,6 @@ const TMDB_API_KEY = "8baba8ab6b8bbe247645bcae7df63d0d";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const TMDB_IMG_BASE = "https://image.tmdb.org/t/p/w500";
 
-// In-file robust normalizers to avoid any import resolution failures
 const normalizeTmdb = (item, mediaType = "movie") => {
   if (!item) return null;
   return {
@@ -39,6 +38,7 @@ const normalizeTmdb = (item, mediaType = "movie") => {
       : "https://image.tmdb.org/t/p/w780/4HodYYKEIsGOdinkGi2Ucz6X9i0.jpg",
     rating: typeof item.vote_average === "number" ? item.vote_average.toFixed(1) : "N/A",
     year: (item.release_date || item.first_air_date || "2024").slice(0, 4),
+    originalLanguage: item.original_language || "en",
   };
 };
 
@@ -58,6 +58,7 @@ const normalizeJikan = (item) => {
     backdrop: poster,
     rating: typeof item.score === "number" ? item.score.toFixed(1) : "N/A",
     year: item.year ? String(item.year) : (item.aired?.from ? item.aired.from.slice(0, 4) : "2024"),
+    originalLanguage: "ja",
   };
 };
 
@@ -69,14 +70,20 @@ const MAIN_TABS = [
   { id: "tv", label: "TV", icon: "tv" },
 ];
 
+const LANGUAGES = [
+  { id: "all", label: "All Audio" },
+  { id: "hi", label: "Hindi (हिंदी)" },
+  { id: "en", label: "English" },
+];
+
 const SUB_CATEGORIES = {
   trending: [
     { id: "today", label: "Today" },
     { id: "this_week", label: "This Week" },
-    { id: "now_playing", label: "Now Playing" },
+    { id: "now_playing", label: "In Indian Cinemas" },
   ],
   movie: [
-    { id: "popular", label: "Popular" },
+    { id: "popular", label: "Popular in India" },
     { id: "top_rated", label: "Top Rated" },
     { id: "upcoming", label: "Upcoming" },
   ],
@@ -181,6 +188,7 @@ const INITIAL_CONTINUE = [
 export default function HomeScreen({ navigation }) {
   const [selectedMainTab, setSelectedMainTab] = useState("trending");
   const [selectedSubTab, setSelectedSubTab] = useState(SUB_CATEGORIES.trending[0].id);
+  const [selectedLang, setSelectedLang] = useState("all");
   const [heroItems, setHeroItems] = useState(DEFAULT_HERO);
   const [shelfItems, setShelfItems] = useState(DEFAULT_SHELF);
   const [continueWatching, setContinueWatching] = useState(INITIAL_CONTINUE);
@@ -198,8 +206,8 @@ export default function HomeScreen({ navigation }) {
       .catch(() => {});
   }, []);
 
-  const fetchTabFeed = useCallback(async (mainTab, subTab) => {
-    const cacheKey = `${mainTab}_${subTab}`;
+  const fetchTabFeed = useCallback(async (mainTab, subTab, lang) => {
+    const cacheKey = `${mainTab}_${subTab}_${lang}`;
     if (cacheRef.current[cacheKey]) {
       const cached = cacheRef.current[cacheKey];
       setHeroItems(cached.hero || DEFAULT_HERO);
@@ -218,17 +226,19 @@ export default function HomeScreen({ navigation }) {
           normalized = json.data.map(normalizeJikan).filter(Boolean);
         }
       } else {
-        let endpoint = `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_API_KEY}`;
+        const langParam = lang === "hi" ? "&with_original_language=hi" : lang === "en" ? "&with_original_language=en" : "";
+        let endpoint = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&region=IN&watch_region=IN&sort_by=popularity.desc${langParam}&page=1`;
+
         if (mainTab === "trending") {
-          if (subTab === "this_week") {
-            endpoint = `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_API_KEY}`;
-          } else if (subTab === "now_playing") {
-            endpoint = `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`;
+          if (lang === "all") {
+            if (subTab === "today") endpoint = `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_API_KEY}&region=IN`;
+            else if (subTab === "this_week") endpoint = `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_API_KEY}&region=IN`;
+            else endpoint = `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&region=IN&page=1`;
           }
         } else if (mainTab === "movie") {
-          endpoint = `https://api.themoviedb.org/3/movie/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`;
+          endpoint = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&region=IN&sort_by=popularity.desc${langParam}&page=1`;
         } else if (mainTab === "series" || mainTab === "tv") {
-          endpoint = `https://api.themoviedb.org/3/tv/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`;
+          endpoint = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&watch_region=IN&sort_by=popularity.desc${langParam}&page=1`;
         }
 
         const res = await fetch(endpoint);
@@ -253,8 +263,8 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    fetchTabFeed(selectedMainTab, selectedSubTab);
-  }, [selectedMainTab, selectedSubTab, fetchTabFeed]);
+    fetchTabFeed(selectedMainTab, selectedSubTab, selectedLang);
+  }, [selectedMainTab, selectedSubTab, selectedLang, fetchTabFeed]);
 
   const handleSelectMainTab = (tabId) => {
     setSelectedMainTab(tabId);
@@ -281,11 +291,14 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0D0C13" />
 
-      {/* Header */}
+      {/* Header with India Badge */}
       <View style={styles.header}>
         <View style={styles.logoRow}>
           <Text style={styles.brandStream}>STREAM</Text>
           <Text style={styles.brandHub}>HUB</Text>
+          <View style={styles.inBadge}>
+            <Text style={styles.inBadgeText}>IN</Text>
+          </View>
         </View>
         <TouchableOpacity
           style={styles.searchBtn}
@@ -331,6 +344,43 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
+      {/* Language / Audio Selector Strip */}
+      {selectedMainTab !== "anime" && (
+        <View style={styles.languageStrip}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.subTabContent}
+          >
+            {LANGUAGES.map((lang) => {
+              const isLangActive = selectedLang === lang.id;
+              return (
+                <TouchableOpacity
+                  key={lang.id}
+                  style={[styles.langChip, isLangActive && styles.langChipActive]}
+                  onPress={() => setSelectedLang(lang.id)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="globe-outline"
+                    size={11}
+                    color={isLangActive ? "#FF334B" : "#8E8E9A"}
+                  />
+                  <Text
+                    style={[
+                      styles.langChipText,
+                      isLangActive && styles.langChipTextActive,
+                    ]}
+                  >
+                    {lang.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Sub-Category Chips */}
       <View style={styles.subCategoryStrip}>
         <ScrollView
@@ -361,12 +411,12 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Feed Content */}
+      {/* Main Feed Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Giant Hero Carousel */}
+        {/* Hero Carousel */}
         <FlatList
           horizontal
           data={heroItems}
@@ -393,6 +443,11 @@ export default function HomeScreen({ navigation }) {
                       <Text style={styles.ratingText}>{item.rating}</Text>
                     </View>
                     <Text style={styles.heroYear}>{item.year}</Text>
+                    <View style={styles.langTag}>
+                      <Text style={styles.langTagText}>
+                        {item.originalLanguage === "hi" ? "HINDI" : item.originalLanguage === "ja" ? "JPN" : "ENG"}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
@@ -542,6 +597,18 @@ const styles = StyleSheet.create({
     marginLeft: 3,
     letterSpacing: 0.5,
   },
+  inBadge: {
+    backgroundColor: "#FF5722",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    marginLeft: 6,
+  },
+  inBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "900",
+  },
   searchBtn: {
     width: 36,
     height: 36,
@@ -582,6 +649,34 @@ const styles = StyleSheet.create({
   },
   tabItemTextActive: {
     color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  languageStrip: {
+    height: 32,
+    backgroundColor: "#0D0C13",
+    justifyContent: "center",
+  },
+  langChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#181721",
+  },
+  langChipActive: {
+    backgroundColor: "rgba(255, 51, 75, 0.15)",
+    borderWidth: 1,
+    borderColor: "#FF334B",
+  },
+  langChipText: {
+    fontSize: 10.5,
+    fontWeight: "600",
+    color: "#8E8E9A",
+  },
+  langChipTextActive: {
+    color: "#FF334B",
     fontWeight: "700",
   },
   subCategoryStrip: {
@@ -677,6 +772,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  langTag: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  langTagText: {
+    color: "#DDDDE8",
+    fontSize: 9,
+    fontWeight: "700",
+  },
   floatingPlayBtn: {
     width: 44,
     height: 44,
@@ -684,6 +790,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF334B",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#FF334B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 5,
   },
   sectionContainer: {
     marginTop: 22,
