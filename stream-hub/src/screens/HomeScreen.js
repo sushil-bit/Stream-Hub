@@ -47,6 +47,7 @@ const normalizeJikan = (item) => {
   const poster =
     item.images?.jpg?.large_image_url ||
     item.images?.webp?.large_image_url ||
+    item.images?.jpg?.image_url ||
     "https://cdn.myanimelist.net/images/anime/1286/99889l.jpg";
   return {
     id: `jikan_${item.mal_id}`,
@@ -103,6 +104,69 @@ const SUB_CATEGORIES = {
     { id: "top_rated", label: "Top Rated" },
   ],
 };
+
+const DEFAULT_ANIME_FALLBACK = [
+  {
+    id: "anime_fb_1",
+    rawId: 85937,
+    mediaType: "anime",
+    title: "Demon Slayer: Kimetsu no Yaiba",
+    year: "2019",
+    rating: "8.7",
+    poster: "https://image.tmdb.org/t/p/w500/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg",
+    originalLanguage: "ja",
+  },
+  {
+    id: "anime_fb_2",
+    rawId: 94605,
+    mediaType: "anime",
+    title: "Jujutsu Kaisen",
+    year: "2020",
+    rating: "8.6",
+    poster: "https://image.tmdb.org/t/p/w500/hFWP5HkbVEe40grUdu2QKjEZBm2.jpg",
+    originalLanguage: "ja",
+  },
+  {
+    id: "anime_fb_3",
+    rawId: 1429,
+    mediaType: "anime",
+    title: "Attack on Titan",
+    year: "2013",
+    rating: "9.0",
+    poster: "https://image.tmdb.org/t/p/w500/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg",
+    originalLanguage: "ja",
+  },
+  {
+    id: "anime_fb_4",
+    rawId: 30984,
+    mediaType: "anime",
+    title: "Bleach: Thousand-Year Blood War",
+    year: "2022",
+    rating: "8.9",
+    poster: "https://image.tmdb.org/t/p/w500/2Eewgp7o5AU1xCjrXY9AcVJ23xU.jpg",
+    originalLanguage: "ja",
+  },
+  {
+    id: "anime_fb_5",
+    rawId: 46298,
+    mediaType: "anime",
+    title: "Hunter x Hunter",
+    year: "2011",
+    rating: "8.9",
+    poster: "https://image.tmdb.org/t/p/w500/ucmpFdWmk4ZLMsoMUy44o138t7k.jpg",
+    originalLanguage: "ja",
+  },
+  {
+    id: "anime_fb_6",
+    rawId: 37854,
+    mediaType: "anime",
+    title: "One Piece",
+    year: "1999",
+    rating: "8.9",
+    poster: "https://image.tmdb.org/t/p/w500/cMD9Ygz11yjEzAeiUR954aBtJVT.jpg",
+    originalLanguage: "ja",
+  },
+];
 
 const DEFAULT_HERO = [
   {
@@ -219,11 +283,37 @@ export default function HomeScreen({ navigation }) {
       let normalized = [];
 
       if (mainTab === "anime") {
-        const filter = subTab === "airing" ? "airing" : subTab === "favorite" ? "favorite" : "bypopularity";
-        const res = await fetch(`${JIKAN_BASE_URL}/top/anime?filter=${filter}&limit=20`);
-        const json = await res.json();
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          normalized = json.data.map(normalizeJikan).filter(Boolean);
+        // Try Jikan first with timeout
+        try {
+          const filter = subTab === "airing" ? "airing" : subTab === "favorite" ? "favorite" : "bypopularity";
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 3500);
+
+          const res = await fetch(`${JIKAN_BASE_URL}/top/anime?filter=${filter}&limit=20`, {
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+              normalized = json.data.map(normalizeJikan).filter(Boolean);
+            }
+          }
+        } catch (jikanErr) {
+          // Jikan rate-limited or timed out, fallback directly to TMDB Animation (Japanese)
+        }
+
+        // If Jikan fails or is rate limited (429), pull live Anime from TMDB instantly
+        if (normalized.length === 0) {
+          const tmdbAnimeUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=1`;
+          const res = await fetch(tmdbAnimeUrl);
+          const json = await res.json();
+          if (json?.results && Array.isArray(json.results) && json.results.length > 0) {
+            normalized = json.results.map((i) => normalizeTmdb(i, "tv")).filter(Boolean);
+          } else {
+            normalized = DEFAULT_ANIME_FALLBACK;
+          }
         }
       } else {
         const langParam = lang === "hi" ? "&with_original_language=hi" : lang === "en" ? "&with_original_language=en" : "";
@@ -258,7 +348,10 @@ export default function HomeScreen({ navigation }) {
         setShelfItems(shelf);
       }
     } catch (e) {
-      // Retain fallback items without crashing
+      if (mainTab === "anime") {
+        setHeroItems(DEFAULT_ANIME_FALLBACK.slice(0, 3));
+        setShelfItems(DEFAULT_ANIME_FALLBACK.slice(3));
+      }
     }
   }, []);
 
@@ -291,7 +384,7 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0D0C13" />
 
-      {/* Header with India Badge */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoRow}>
           <Text style={styles.brandStream}>STREAM</Text>
@@ -344,7 +437,7 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Language / Audio Selector Strip */}
+      {/* Language / Audio Selector */}
       {selectedMainTab !== "anime" && (
         <View style={styles.languageStrip}>
           <ScrollView
@@ -411,12 +504,12 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Main Feed Content */}
+      {/* Feed Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Hero Carousel */}
+        {/* Giant Hero Carousel */}
         <FlatList
           horizontal
           data={heroItems}
@@ -445,7 +538,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.heroYear}>{item.year}</Text>
                     <View style={styles.langTag}>
                       <Text style={styles.langTagText}>
-                        {item.originalLanguage === "hi" ? "HINDI" : item.originalLanguage === "ja" ? "JPN" : "ENG"}
+                        {item.originalLanguage === "hi" ? "HINDI" : item.originalLanguage === "ja" ? "ANIME" : "ENG"}
                       </Text>
                     </View>
                   </View>
@@ -471,7 +564,7 @@ export default function HomeScreen({ navigation }) {
           )}
         />
 
-        {/* Continue Watching Section */}
+        {/* Continue Watching */}
         {continueWatching.length > 0 && (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
