@@ -10,11 +10,9 @@ import {
   StatusBar,
   FlatList,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { normalizeTmdbItem, normalizeJikanItem } from "../utils/mediaNormalizer";
 
 const { width } = Dimensions.get("window");
 const HERO_CARD_WIDTH = width * 0.76;
@@ -22,6 +20,46 @@ const HERO_CARD_HEIGHT = HERO_CARD_WIDTH * 1.45;
 
 const TMDB_API_KEY = "8baba8ab6b8bbe247645bcae7df63d0d";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
+const TMDB_IMG_BASE = "https://image.tmdb.org/t/p/w500";
+
+// In-file robust normalizers to avoid any import resolution failures
+const normalizeTmdb = (item, mediaType = "movie") => {
+  if (!item) return null;
+  return {
+    id: `tmdb_${item.id}`,
+    rawId: item.id,
+    source: "tmdb",
+    mediaType: item.title ? "movie" : "tv",
+    title: item.title || item.name || "Untitled",
+    poster: item.poster_path
+      ? `${TMDB_IMG_BASE}${item.poster_path}`
+      : "https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg",
+    backdrop: item.backdrop_path
+      ? `https://image.tmdb.org/t/p/w780${item.backdrop_path}`
+      : "https://image.tmdb.org/t/p/w780/4HodYYKEIsGOdinkGi2Ucz6X9i0.jpg",
+    rating: typeof item.vote_average === "number" ? item.vote_average.toFixed(1) : "N/A",
+    year: (item.release_date || item.first_air_date || "2024").slice(0, 4),
+  };
+};
+
+const normalizeJikan = (item) => {
+  if (!item) return null;
+  const poster =
+    item.images?.jpg?.large_image_url ||
+    item.images?.webp?.large_image_url ||
+    "https://cdn.myanimelist.net/images/anime/1286/99889l.jpg";
+  return {
+    id: `jikan_${item.mal_id}`,
+    rawId: item.mal_id,
+    source: "jikan",
+    mediaType: "anime",
+    title: item.title_english || item.title || "Untitled Anime",
+    poster,
+    backdrop: poster,
+    rating: typeof item.score === "number" ? item.score.toFixed(1) : "N/A",
+    year: item.year ? String(item.year) : (item.aired?.from ? item.aired.from.slice(0, 4) : "2024"),
+  };
+};
 
 const MAIN_TABS = [
   { id: "trending", label: "Trending", icon: "flame" },
@@ -140,56 +178,35 @@ const INITIAL_CONTINUE = [
   },
 ];
 
-// Resilient multi-tier TMDb fetcher
-async function safeTmdbFetch(path) {
-  const directUrl = `https://api.themoviedb.org/3${path}`;
-  try {
-    const res = await fetch(directUrl);
-    if (res.ok) return await res.json();
-  } catch (e) {
-    // Primary failed (ISP block / DNS resolution failure)
-  }
-
-  // Backup via allorigins proxy
-  try {
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`;
-    const res = await fetch(proxyUrl);
-    if (res.ok) return await res.json();
-  } catch (e) {
-    // Secondary failed
-  }
-  return null;
-}
-
 export default function HomeScreen({ navigation }) {
   const [selectedMainTab, setSelectedMainTab] = useState("trending");
   const [selectedSubTab, setSelectedSubTab] = useState(SUB_CATEGORIES.trending[0].id);
   const [heroItems, setHeroItems] = useState(DEFAULT_HERO);
   const [shelfItems, setShelfItems] = useState(DEFAULT_SHELF);
-  const [loading, setLoading] = useState(false);
   const [continueWatching, setContinueWatching] = useState(INITIAL_CONTINUE);
 
   const cacheRef = useRef({});
 
   useEffect(() => {
-    AsyncStorage.getItem("@streamhub_default_landing").then((landing) => {
-      if (landing && MAIN_TABS.some((t) => t.id === landing)) {
-        setSelectedMainTab(landing);
-        setSelectedSubTab(SUB_CATEGORIES[landing][0].id);
-      }
-    });
+    AsyncStorage.getItem("@streamhub_default_landing")
+      .then((landing) => {
+        if (landing && MAIN_TABS.some((t) => t.id === landing)) {
+          setSelectedMainTab(landing);
+          setSelectedSubTab(SUB_CATEGORIES[landing][0].id);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const fetchTabFeed = useCallback(async (mainTab, subTab) => {
     const cacheKey = `${mainTab}_${subTab}`;
     if (cacheRef.current[cacheKey]) {
       const cached = cacheRef.current[cacheKey];
-      setHeroItems(cached.hero);
-      setShelfItems(cached.shelf);
+      setHeroItems(cached.hero || DEFAULT_HERO);
+      setShelfItems(cached.shelf || DEFAULT_SHELF);
       return;
     }
 
-    setLoading(true);
     try {
       let normalized = [];
 
@@ -197,30 +214,29 @@ export default function HomeScreen({ navigation }) {
         const filter = subTab === "airing" ? "airing" : subTab === "favorite" ? "favorite" : "bypopularity";
         const res = await fetch(`${JIKAN_BASE_URL}/top/anime?filter=${filter}&limit=20`);
         const json = await res.json();
-        if (json.data && json.data.length > 0) {
-          normalized = json.data.map(normalizeJikanItem).filter(Boolean);
+        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+          normalized = json.data.map(normalizeJikan).filter(Boolean);
         }
-      } else if (mainTab === "trending") {
-        let endpoint = `/trending/all/day?api_key=${TMDB_API_KEY}`;
-        if (subTab === "this_week") {
-          endpoint = `/trending/all/week?api_key=${TMDB_API_KEY}`;
-        } else if (subTab === "now_playing") {
-          endpoint = `/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`;
+      } else {
+        let endpoint = `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_API_KEY}`;
+        if (mainTab === "trending") {
+          if (subTab === "this_week") {
+            endpoint = `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_API_KEY}`;
+          } else if (subTab === "now_playing") {
+            endpoint = `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`;
+          }
+        } else if (mainTab === "movie") {
+          endpoint = `https://api.themoviedb.org/3/movie/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`;
+        } else if (mainTab === "series" || mainTab === "tv") {
+          endpoint = `https://api.themoviedb.org/3/tv/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`;
         }
-        const json = await safeTmdbFetch(endpoint);
-        if (json && json.results && json.results.length > 0) {
-          normalized = json.results.map((i) => normalizeTmdbItem(i, i.media_type || "movie")).filter(Boolean);
-        }
-      } else if (mainTab === "movie") {
-        const json = await safeTmdbFetch(`/movie/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`);
-        if (json && json.results && json.results.length > 0) {
-          normalized = json.results.map((i) => normalizeTmdbItem(i, "movie")).filter(Boolean);
-        }
-      } else if (mainTab === "series" || mainTab === "tv") {
-        const targetType = subTab || "popular";
-        const json = await safeTmdbFetch(`/tv/${targetType}?api_key=${TMDB_API_KEY}&page=1`);
-        if (json && json.results && json.results.length > 0) {
-          normalized = json.results.map((i) => normalizeTmdbItem(i, "tv")).filter(Boolean);
+
+        const res = await fetch(endpoint);
+        const json = await res.json();
+        const results = json?.results;
+        if (Array.isArray(results) && results.length > 0) {
+          const type = mainTab === "movie" ? "movie" : mainTab === "series" || mainTab === "tv" ? "tv" : null;
+          normalized = results.map((i) => normalizeTmdb(i, type || i.media_type || "movie")).filter(Boolean);
         }
       }
 
@@ -232,9 +248,7 @@ export default function HomeScreen({ navigation }) {
         setShelfItems(shelf);
       }
     } catch (e) {
-      // Keep existing default items gracefully if connection issues persist
-    } finally {
-      setLoading(false);
+      // Retain fallback items without crashing
     }
   }, []);
 
@@ -244,7 +258,9 @@ export default function HomeScreen({ navigation }) {
 
   const handleSelectMainTab = (tabId) => {
     setSelectedMainTab(tabId);
-    setSelectedSubTab(SUB_CATEGORIES[tabId][0].id);
+    if (SUB_CATEGORIES[tabId]?.[0]?.id) {
+      setSelectedSubTab(SUB_CATEGORIES[tabId][0].id);
+    }
   };
 
   const handleClearAllContinue = () => {
@@ -265,7 +281,7 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0D0C13" />
 
-      {/* Top Header */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoRow}>
           <Text style={styles.brandStream}>STREAM</Text>
@@ -273,7 +289,7 @@ export default function HomeScreen({ navigation }) {
         </View>
         <TouchableOpacity
           style={styles.searchBtn}
-          onPress={() => navigation.navigate("Explore")}
+          onPress={() => navigation?.navigate && navigation.navigate("Explore")}
           activeOpacity={0.8}
         >
           <Ionicons name="search" size={18} color="#FFFFFF" />
@@ -345,7 +361,7 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Main Feed Content */}
+      {/* Feed Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -354,7 +370,7 @@ export default function HomeScreen({ navigation }) {
         <FlatList
           horizontal
           data={heroItems}
-          keyExtractor={(item, index) => `hero_${item.id}_${index}`}
+          keyExtractor={(item, index) => `hero_${item.id || index}`}
           showsHorizontalScrollIndicator={false}
           snapToInterval={HERO_CARD_WIDTH + 14}
           decelerationRate="fast"
@@ -384,6 +400,7 @@ export default function HomeScreen({ navigation }) {
                   style={styles.floatingPlayBtn}
                   activeOpacity={0.85}
                   onPress={() =>
+                    navigation?.navigate &&
                     navigation.navigate("Details", {
                       id: item.rawId,
                       mediaType: item.mediaType,
@@ -422,7 +439,7 @@ export default function HomeScreen({ navigation }) {
                       <TouchableOpacity
                         style={styles.continuePlayBtn}
                         activeOpacity={0.85}
-                        onPress={() => navigation.navigate("Details", { item })}
+                        onPress={() => navigation?.navigate && navigation.navigate("Details", { item })}
                       >
                         <Ionicons name="play" size={14} color="#FFFFFF" />
                       </TouchableOpacity>
@@ -463,10 +480,11 @@ export default function HomeScreen({ navigation }) {
             >
               {shelfItems.map((item, index) => (
                 <TouchableOpacity
-                  key={`shelf_${item.id}_${index}`}
+                  key={`shelf_${item.id || index}`}
                   style={styles.shelfCard}
                   activeOpacity={0.8}
                   onPress={() =>
+                    navigation?.navigate &&
                     navigation.navigate("Details", {
                       id: item.rawId,
                       mediaType: item.mediaType,
