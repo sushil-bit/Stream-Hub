@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,42 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { width } = Dimensions.get("window");
 const HERO_CARD_WIDTH = width * 0.76;
 const HERO_CARD_HEIGHT = HERO_CARD_WIDTH * 1.45;
+
+const MAIN_TABS = [
+  { id: "trending", label: "Trending", icon: "flame" },
+  { id: "movie", label: "Movie", icon: "film" },
+  { id: "series", label: "Series", icon: "albums" },
+  { id: "anime", label: "Anime", icon: "play-circle" },
+  { id: "tv", label: "TV", icon: "tv" },
+];
+
+const SUB_CATEGORIES = {
+  trending: [
+    { id: "today", label: "Today" },
+    { id: "this_week", label: "This Week" },
+    { id: "now_playing", label: "Now Playing" },
+  ],
+  movie: [
+    { id: "popular", label: "Popular" },
+    { id: "top_rated", label: "Top Rated" },
+    { id: "upcoming", label: "Upcoming" },
+  ],
+  series: [
+    { id: "popular", label: "Popular" },
+    { id: "top_rated", label: "Top Rated" },
+    { id: "on_the_air", label: "On The Air" },
+  ],
+  anime: [
+    { id: "bypopularity", label: "Most Popular" },
+    { id: "airing", label: "Top Airing" },
+    { id: "favorite", label: "Fan Favorites" },
+  ],
+  tv: [
+    { id: "airing_today", label: "Airing Today" },
+    { id: "on_the_air", label: "On The Air" },
+    { id: "top_rated", label: "Top Rated" },
+  ],
+};
 
 const HERO_FEATURED = [
   {
@@ -97,7 +133,23 @@ const TRENDING_MOVIES = [
 ];
 
 export default function HomeScreen({ navigation }) {
+  const [selectedMainTab, setSelectedMainTab] = useState("trending");
+  const [selectedSubTab, setSelectedSubTab] = useState(SUB_CATEGORIES.trending[0].id);
   const [continueWatching, setContinueWatching] = useState(INITIAL_CONTINUE);
+
+  useEffect(() => {
+    AsyncStorage.getItem("@streamhub_default_landing").then((landing) => {
+      if (landing && MAIN_TABS.some((t) => t.id === landing)) {
+        setSelectedMainTab(landing);
+        setSelectedSubTab(SUB_CATEGORIES[landing][0].id);
+      }
+    });
+  }, []);
+
+  const handleSelectMainTab = (tabId) => {
+    setSelectedMainTab(tabId);
+    setSelectedSubTab(SUB_CATEGORIES[tabId][0].id);
+  };
 
   const handleClearAllContinue = () => {
     Alert.alert("Clear Continue Watching", "Remove all in-progress titles?", [
@@ -129,6 +181,72 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* Main Categories Bar (Trending, Movie, Series, Anime, TV) */}
+      <View style={styles.mainTabStrip}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.mainTabContent}
+        >
+          {MAIN_TABS.map((cat) => {
+            const isActive = selectedMainTab === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.tabItem, isActive && styles.tabItemActive]}
+                onPress={() => handleSelectMainTab(cat.id)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={cat.icon}
+                  size={13}
+                  color={isActive ? "#FF334B" : "#7E7E8A"}
+                />
+                <Text
+                  style={[
+                    styles.tabItemText,
+                    isActive && styles.tabItemTextActive,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Dynamic Sub-Category Chips (Today, This Week, Now Playing, etc.) */}
+      <View style={styles.subCategoryStrip}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.subTabContent}
+        >
+          {(SUB_CATEGORIES[selectedMainTab] || []).map((sub) => {
+            const isSubActive = selectedSubTab === sub.id;
+            return (
+              <TouchableOpacity
+                key={sub.id}
+                style={[styles.subChip, isSubActive && styles.subChipActive]}
+                onPress={() => setSelectedSubTab(sub.id)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.subChipText,
+                    isSubActive && styles.subChipTextActive,
+                  ]}
+                >
+                  {sub.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Content Feed */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -271,7 +389,7 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 48,
     paddingHorizontal: 18,
-    paddingBottom: 14,
+    paddingBottom: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -301,13 +419,76 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  mainTabStrip: {
+    height: 42,
+    backgroundColor: "#0D0C13",
+    justifyContent: "center",
+  },
+  mainTabContent: {
+    paddingHorizontal: 14,
+    alignItems: "center",
+    gap: 8,
+  },
+  tabItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#16161F",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "#22222E",
+  },
+  tabItemActive: {
+    backgroundColor: "rgba(255, 51, 75, 0.12)",
+    borderColor: "#FF334B",
+  },
+  tabItemText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7E7E8A",
+  },
+  tabItemTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  subCategoryStrip: {
+    height: 34,
+    backgroundColor: "#0D0C13",
+    justifyContent: "center",
+  },
+  subTabContent: {
+    paddingHorizontal: 14,
+    alignItems: "center",
+    gap: 6,
+  },
+  subChip: {
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "transparent",
+  },
+  subChipActive: {
+    backgroundColor: "#20202E",
+  },
+  subChipText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#6E6E7A",
+  },
+  subChipTextActive: {
+    color: "#FF334B",
+    fontWeight: "700",
+  },
   scrollContent: {
+    paddingTop: 8,
     paddingBottom: 110,
   },
   heroCarouselContent: {
     paddingHorizontal: 16,
     gap: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   heroCard: {
     width: HERO_CARD_WIDTH,
@@ -379,7 +560,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   sectionContainer: {
-    marginTop: 24,
+    marginTop: 22,
   },
   sectionHeader: {
     flexDirection: "row",
