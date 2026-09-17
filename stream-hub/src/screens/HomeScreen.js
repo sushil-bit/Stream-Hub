@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -10,13 +10,18 @@ import {
   StatusBar,
   FlatList,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { normalizeTmdbItem, normalizeJikanItem } from "../utils/mediaNormalizer";
 
 const { width } = Dimensions.get("window");
 const HERO_CARD_WIDTH = width * 0.76;
 const HERO_CARD_HEIGHT = HERO_CARD_WIDTH * 1.45;
+
+const TMDB_API_KEY = "84143a2ecd5784ea50d9990edc20d7f9";
+const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
 const MAIN_TABS = [
   { id: "trending", label: "Trending", icon: "flame" },
@@ -54,36 +59,6 @@ const SUB_CATEGORIES = {
   ],
 };
 
-const HERO_FEATURED = [
-  {
-    id: "h_1",
-    rawId: 634649,
-    mediaType: "movie",
-    title: "Spider-Man: Brand New Day",
-    year: "2026",
-    rating: "7.8",
-    poster: "https://image.tmdb.org/t/p/w780/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg",
-  },
-  {
-    id: "h_2",
-    rawId: 102,
-    mediaType: "anime",
-    title: "Demon Slayer: Infinity Castle",
-    year: "2025",
-    rating: "8.9",
-    poster: "https://cdn.myanimelist.net/images/anime/1286/99889l.jpg",
-  },
-  {
-    id: "h_3",
-    rawId: 103,
-    mediaType: "tv",
-    title: "Stranger Things 5",
-    year: "2025",
-    rating: "8.7",
-    poster: "https://image.tmdb.org/t/p/w780/49WJfeN0moxb9IPfGn8AIqMGskD.jpg",
-  },
-];
-
 const INITIAL_CONTINUE = [
   {
     id: "cw_1",
@@ -108,34 +83,15 @@ const INITIAL_CONTINUE = [
   },
 ];
 
-const TRENDING_MOVIES = [
-  {
-    id: "m_1",
-    title: "Spider-Man: Across the Spider-Verse",
-    rating: "8.7",
-    year: "2023",
-    poster: "https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg",
-  },
-  {
-    id: "m_2",
-    title: "Oppenheimer",
-    rating: "8.5",
-    year: "2023",
-    poster: "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
-  },
-  {
-    id: "m_3",
-    title: "Dune: Part Two",
-    rating: "8.6",
-    year: "2024",
-    poster: "https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
-  },
-];
-
 export default function HomeScreen({ navigation }) {
   const [selectedMainTab, setSelectedMainTab] = useState("trending");
   const [selectedSubTab, setSelectedSubTab] = useState(SUB_CATEGORIES.trending[0].id);
+  const [heroItems, setHeroItems] = useState([]);
+  const [shelfItems, setShelfItems] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [continueWatching, setContinueWatching] = useState(INITIAL_CONTINUE);
+
+  const cacheRef = useRef({});
 
   useEffect(() => {
     AsyncStorage.getItem("@streamhub_default_landing").then((landing) => {
@@ -145,6 +101,67 @@ export default function HomeScreen({ navigation }) {
       }
     });
   }, []);
+
+  const fetchTabFeed = useCallback(async (mainTab, subTab) => {
+    const cacheKey = `${mainTab}_${subTab}`;
+    if (cacheRef.current[cacheKey]) {
+      const cached = cacheRef.current[cacheKey];
+      setHeroItems(cached.hero);
+      setShelfItems(cached.shelf);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let normalized = [];
+
+      if (mainTab === "anime") {
+        const filter = subTab === "airing" ? "airing" : subTab === "favorite" ? "favorite" : "bypopularity";
+        const res = await fetch(`${JIKAN_BASE_URL}/top/anime?filter=${filter}&limit=20`);
+        const json = await res.json();
+        normalized = (json.data || []).map(normalizeJikanItem).filter(Boolean);
+      } else if (mainTab === "trending") {
+        let endpoint = `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_API_KEY}`;
+        if (subTab === "this_week") {
+          endpoint = `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_API_KEY}`;
+        } else if (subTab === "now_playing") {
+          endpoint = `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`;
+        }
+        const res = await fetch(endpoint);
+        const json = await res.json();
+        normalized = (json.results || []).map((i) => normalizeTmdbItem(i, i.media_type || "movie")).filter(Boolean);
+      } else if (mainTab === "movie") {
+        const res = await fetch(
+          `https://api.themoviedb.org/3/movie/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`
+        );
+        const json = await res.json();
+        normalized = (json.results || []).map((i) => normalizeTmdbItem(i, "movie")).filter(Boolean);
+      } else if (mainTab === "series" || mainTab === "tv") {
+        const targetType = subTab || "popular";
+        const res = await fetch(
+          `https://api.themoviedb.org/3/tv/${targetType}?api_key=${TMDB_API_KEY}&page=1`
+        );
+        const json = await res.json();
+        normalized = (json.results || []).map((i) => normalizeTmdbItem(i, "tv")).filter(Boolean);
+      }
+
+      if (normalized.length > 0) {
+        const hero = normalized.slice(0, 5);
+        const shelf = normalized.slice(5);
+        cacheRef.current[cacheKey] = { hero, shelf };
+        setHeroItems(hero);
+        setShelfItems(shelf);
+      }
+    } catch (e) {
+      console.warn("Feed loading error:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTabFeed(selectedMainTab, selectedSubTab);
+  }, [selectedMainTab, selectedSubTab, fetchTabFeed]);
 
   const handleSelectMainTab = (tabId) => {
     setSelectedMainTab(tabId);
@@ -161,6 +178,9 @@ export default function HomeScreen({ navigation }) {
   const removeContinueItem = (id) => {
     setContinueWatching((prev) => prev.filter((i) => i.id !== id));
   };
+
+  const activeMainLabel = MAIN_TABS.find((t) => t.id === selectedMainTab)?.label || "Trending";
+  const activeSubLabel = SUB_CATEGORIES[selectedMainTab]?.find((s) => s.id === selectedSubTab)?.label || "";
 
   return (
     <View style={styles.container}>
@@ -216,7 +236,7 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Dynamic Sub-Category Chips (Today, This Week, Now Playing, etc.) */}
+      {/* Dynamic Sub-Category Chips */}
       <View style={styles.subCategoryStrip}>
         <ScrollView
           horizontal
@@ -251,131 +271,149 @@ export default function HomeScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Giant Hero Carousel */}
-        <FlatList
-          horizontal
-          data={HERO_FEATURED}
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={HERO_CARD_WIDTH + 14}
-          decelerationRate="fast"
-          contentContainerStyle={styles.heroCarouselContent}
-          renderItem={({ item }) => (
-            <View style={styles.heroCard}>
-              <Image source={{ uri: item.poster }} style={styles.heroImage} resizeMode="cover" />
-              <View style={styles.heroOverlay}>
-                <View style={styles.heroTextContent}>
-                  <Text style={styles.heroTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  <View style={styles.heroMetaRow}>
-                    <View style={styles.ratingBadge}>
-                      <Ionicons name="star" size={11} color="#FFB800" />
-                      <Text style={styles.ratingText}>{item.rating}</Text>
-                    </View>
-                    <Text style={styles.heroYear}>{item.year}</Text>
-                  </View>
-                </View>
-
-                {/* Floating Round Play Action */}
-                <TouchableOpacity
-                  style={styles.floatingPlayBtn}
-                  activeOpacity={0.85}
-                  onPress={() =>
-                    navigation.navigate("Details", {
-                      id: item.rawId,
-                      mediaType: item.mediaType,
-                      item,
-                    })
-                  }
-                >
-                  <Ionicons name="play" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        />
-
-        {/* Continue Watching Section */}
-        {continueWatching.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Continue Watching</Text>
-              <TouchableOpacity onPress={handleClearAllContinue}>
-                <Text style={styles.clearAllText}>Clear All</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
+        {loading && heroItems.length === 0 ? (
+          <View style={styles.loaderArea}>
+            <ActivityIndicator size="large" color="#FF334B" />
+          </View>
+        ) : (
+          <>
+            {/* Giant Hero Carousel */}
+            <FlatList
               horizontal
+              data={heroItems}
+              keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.continueRow}
-            >
-              {continueWatching.map((item) => (
-                <View key={item.id} style={styles.continueCard}>
-                  <View style={styles.continueThumbWrapper}>
-                    <Image source={{ uri: item.backdrop }} style={styles.continueThumb} />
-                    <View style={styles.continueOverlay}>
-                      <TouchableOpacity
-                        style={styles.continuePlayBtn}
-                        activeOpacity={0.85}
-                        onPress={() => navigation.navigate("Details", { item })}
-                      >
-                        <Ionicons name="play" size={14} color="#FFFFFF" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.closeBtn}
-                        onPress={() => removeContinueItem(item.id)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons name="close-circle" size={18} color="#FFFFFF" />
-                      </TouchableOpacity>
+              snapToInterval={HERO_CARD_WIDTH + 14}
+              decelerationRate="fast"
+              contentContainerStyle={styles.heroCarouselContent}
+              renderItem={({ item }) => (
+                <View style={styles.heroCard}>
+                  <Image source={{ uri: item.poster }} style={styles.heroImage} resizeMode="cover" />
+                  <View style={styles.heroOverlay}>
+                    <View style={styles.heroTextContent}>
+                      <Text style={styles.heroTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <View style={styles.heroMetaRow}>
+                        <View style={styles.ratingBadge}>
+                          <Ionicons name="star" size={11} color="#FFB800" />
+                          <Text style={styles.ratingText}>{item.rating}</Text>
+                        </View>
+                        <Text style={styles.heroYear}>{item.year}</Text>
+                      </View>
                     </View>
-                    {/* Progress Bar */}
-                    <View style={styles.progressTrack}>
-                      <View style={[styles.progressBar, { width: `${item.progress * 100}%` }]} />
-                    </View>
-                  </View>
-                  <Text style={styles.continueTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.continueEp}>{item.episode}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
 
-        {/* Trending Movies Section Shelf */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trending Movies</Text>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.shelfRow}
-          >
-            {TRENDING_MOVIES.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.shelfCard}
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate("Details", { item })}
-              >
-                <Image source={{ uri: item.poster }} style={styles.shelfPoster} />
-                <Text style={styles.shelfTitle} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <View style={styles.shelfMeta}>
-                  <Ionicons name="star" size={10} color="#FFB800" />
-                  <Text style={styles.shelfRating}>{item.rating}</Text>
-                  <Text style={styles.shelfYear}>• {item.year}</Text>
+                    <TouchableOpacity
+                      style={styles.floatingPlayBtn}
+                      activeOpacity={0.85}
+                      onPress={() =>
+                        navigation.navigate("Details", {
+                          id: item.rawId,
+                          mediaType: item.mediaType,
+                          source: item.source,
+                          item,
+                        })
+                      }
+                    >
+                      <Ionicons name="play" size={20} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+              )}
+            />
+
+            {/* Continue Watching Section */}
+            {continueWatching.length > 0 && (
+              <View style={styles.sectionContainer}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Continue Watching</Text>
+                  <TouchableOpacity onPress={handleClearAllContinue}>
+                    <Text style={styles.clearAllText}>Clear All</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.continueRow}
+                >
+                  {continueWatching.map((item) => (
+                    <View key={item.id} style={styles.continueCard}>
+                      <View style={styles.continueThumbWrapper}>
+                        <Image source={{ uri: item.backdrop }} style={styles.continueThumb} />
+                        <View style={styles.continueOverlay}>
+                          <TouchableOpacity
+                            style={styles.continuePlayBtn}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate("Details", { item })}
+                          >
+                            <Ionicons name="play" size={14} color="#FFFFFF" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.closeBtn}
+                            onPress={() => removeContinueItem(item.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="close-circle" size={18} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.progressTrack}>
+                          <View style={[styles.progressBar, { width: `${item.progress * 100}%` }]} />
+                        </View>
+                      </View>
+                      <Text style={styles.continueTitle} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.continueEp}>{item.episode}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Dynamic Media Shelf */}
+            {shelfItems.length > 0 && (
+              <View style={styles.sectionContainer}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {activeMainLabel} • {activeSubLabel}
+                  </Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.shelfRow}
+                >
+                  {shelfItems.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.shelfCard}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        navigation.navigate("Details", {
+                          id: item.rawId,
+                          mediaType: item.mediaType,
+                          source: item.source,
+                          item,
+                        })
+                      }
+                    >
+                      <Image source={{ uri: item.poster }} style={styles.shelfPoster} />
+                      <Text style={styles.shelfTitle} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <View style={styles.shelfMeta}>
+                        <Ionicons name="star" size={10} color="#FFB800" />
+                        <Text style={styles.shelfRating}>{item.rating}</Text>
+                        <Text style={styles.shelfYear}>• {item.year}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -484,6 +522,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 8,
     paddingBottom: 110,
+  },
+  loaderArea: {
+    height: 240,
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroCarouselContent: {
     paddingHorizontal: 16,
