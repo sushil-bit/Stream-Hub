@@ -21,8 +21,6 @@ const HERO_CARD_WIDTH = width * 0.76;
 const HERO_CARD_HEIGHT = HERO_CARD_WIDTH * 1.45;
 
 const TMDB_API_KEY = "8baba8ab6b8bbe247645bcae7df63d0d";
-const TMDB_BASE = "https://api.themoviedb.org/3";
-const PROXY_TMDB_BASE = "https://corsproxy.io/?https://api.themoviedb.org/3";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
 const MAIN_TABS = [
@@ -142,6 +140,27 @@ const INITIAL_CONTINUE = [
   },
 ];
 
+// Resilient multi-tier TMDb fetcher
+async function safeTmdbFetch(path) {
+  const directUrl = `https://api.themoviedb.org/3${path}`;
+  try {
+    const res = await fetch(directUrl);
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // Primary failed (ISP block / DNS resolution failure)
+  }
+
+  // Backup via allorigins proxy
+  try {
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`;
+    const res = await fetch(proxyUrl);
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // Secondary failed
+  }
+  return null;
+}
+
 export default function HomeScreen({ navigation }) {
   const [selectedMainTab, setSelectedMainTab] = useState("trending");
   const [selectedSubTab, setSelectedSubTab] = useState(SUB_CATEGORIES.trending[0].id);
@@ -162,17 +181,6 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const fetchTabFeed = useCallback(async (mainTab, subTab) => {
-
-      const safeFetchTmdb = async (endpointPath) => {
-        try {
-          const res = await fetch(`${TMDB_BASE}${endpointPath}`);
-          return await res.json();
-        } catch (err) {
-          const res = await fetch(`${PROXY_TMDB_BASE}${endpointPath}`);
-          return await res.json();
-        }
-      };
-
     const cacheKey = `${mainTab}_${subTab}`;
     if (cacheRef.current[cacheKey]) {
       const cached = cacheRef.current[cacheKey];
@@ -193,32 +201,25 @@ export default function HomeScreen({ navigation }) {
           normalized = json.data.map(normalizeJikanItem).filter(Boolean);
         }
       } else if (mainTab === "trending") {
-        let endpoint = `https://tmdb-proxy.cubepre.workers.dev/3/trending/all/day?api_key=${TMDB_API_KEY}`;
+        let endpoint = `/trending/all/day?api_key=${TMDB_API_KEY}`;
         if (subTab === "this_week") {
-          endpoint = `https://tmdb-proxy.cubepre.workers.dev/3/trending/all/week?api_key=${TMDB_API_KEY}`;
+          endpoint = `/trending/all/week?api_key=${TMDB_API_KEY}`;
         } else if (subTab === "now_playing") {
-          endpoint = `https://tmdb-proxy.cubepre.workers.dev/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`;
+          endpoint = `/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`;
         }
-        const res = await fetch(endpoint);
-        const json = await res.json();
-        if (json.results && json.results.length > 0) {
+        const json = await safeTmdbFetch(endpoint);
+        if (json && json.results && json.results.length > 0) {
           normalized = json.results.map((i) => normalizeTmdbItem(i, i.media_type || "movie")).filter(Boolean);
         }
       } else if (mainTab === "movie") {
-        const res = await fetch(
-          `https://tmdb-proxy.cubepre.workers.dev/3/movie/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`
-        );
-        const json = await res.json();
-        if (json.results && json.results.length > 0) {
+        const json = await safeTmdbFetch(`/movie/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`);
+        if (json && json.results && json.results.length > 0) {
           normalized = json.results.map((i) => normalizeTmdbItem(i, "movie")).filter(Boolean);
         }
       } else if (mainTab === "series" || mainTab === "tv") {
         const targetType = subTab || "popular";
-        const res = await fetch(
-          `https://tmdb-proxy.cubepre.workers.dev/3/tv/${targetType}?api_key=${TMDB_API_KEY}&page=1`
-        );
-        const json = await res.json();
-        if (json.results && json.results.length > 0) {
+        const json = await safeTmdbFetch(`/tv/${targetType}?api_key=${TMDB_API_KEY}&page=1`);
+        if (json && json.results && json.results.length > 0) {
           normalized = json.results.map((i) => normalizeTmdbItem(i, "tv")).filter(Boolean);
         }
       }
@@ -231,7 +232,7 @@ export default function HomeScreen({ navigation }) {
         setShelfItems(shelf);
       }
     } catch (e) {
-      console.warn("Feed loading error:", e);
+      // Keep existing default items gracefully if connection issues persist
     } finally {
       setLoading(false);
     }
@@ -314,7 +315,7 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Sub-Category Filter Chips */}
+      {/* Sub-Category Chips */}
       <View style={styles.subCategoryStrip}>
         <ScrollView
           horizontal
@@ -344,7 +345,7 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Content Feed */}
+      {/* Main Feed Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -398,7 +399,7 @@ export default function HomeScreen({ navigation }) {
           )}
         />
 
-        {/* Continue Watching Row */}
+        {/* Continue Watching Section */}
         {continueWatching.length > 0 && (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
@@ -447,7 +448,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Dynamic Media Shelf */}
+        {/* Media Shelf */}
         {shelfItems.length > 0 && (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
