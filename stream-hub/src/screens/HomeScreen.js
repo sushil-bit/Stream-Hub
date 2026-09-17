@@ -21,6 +21,8 @@ const HERO_CARD_WIDTH = width * 0.76;
 const HERO_CARD_HEIGHT = HERO_CARD_WIDTH * 1.45;
 
 const TMDB_API_KEY = "8baba8ab6b8bbe247645bcae7df63d0d";
+const TMDB_BASE = "https://api.themoviedb.org/3";
+const PROXY_TMDB_BASE = "https://corsproxy.io/?https://api.themoviedb.org/3";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
 const MAIN_TABS = [
@@ -160,6 +162,17 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const fetchTabFeed = useCallback(async (mainTab, subTab) => {
+
+      const safeFetchTmdb = async (endpointPath) => {
+        try {
+          const res = await fetch(`${TMDB_BASE}${endpointPath}`);
+          return await res.json();
+        } catch (err) {
+          const res = await fetch(`${PROXY_TMDB_BASE}${endpointPath}`);
+          return await res.json();
+        }
+      };
+
     const cacheKey = `${mainTab}_${subTab}`;
     if (cacheRef.current[cacheKey]) {
       const cached = cacheRef.current[cacheKey];
