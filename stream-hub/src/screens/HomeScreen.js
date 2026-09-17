@@ -9,21 +9,21 @@ import {
   ActivityIndicator,
   StatusBar,
   ScrollView,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { normalizeTmdbItem, normalizeJikanItem } from "../utils/mediaNormalizer";
 import UnifiedMediaCard from "../components/UnifiedMediaCard";
 
+const { width } = Dimensions.get("window");
 const TMDB_API_KEY = "e2c349924558593414bcbfca414b2d1d";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
 const HEADER_HEIGHT = 52;
 const MAIN_TAB_HEIGHT = 44;
 const SUB_TAB_HEIGHT = 38;
-const TOTAL_COLLAPSIBLE_HEADER = HEADER_HEIGHT; // Only hide the main brand header on scroll
 
-// Main navigation tabs in exact required order
 const MAIN_TABS = [
   { id: "trending", label: "Trending", icon: "flame" },
   { id: "movie", label: "Movie", icon: "film" },
@@ -32,7 +32,6 @@ const MAIN_TABS = [
   { id: "tv", label: "TV", icon: "tv" },
 ];
 
-// Sub-categories mapped cleanly to each main category
 const SUB_CATEGORIES = {
   trending: [
     { id: "all_day", label: "Today" },
@@ -76,7 +75,6 @@ export default function HomeScreen({ navigation }) {
   const scrollY = useRef(new Animated.Value(0)).current;
   const cacheRef = useRef({});
 
-  // Startup default preference hook
   useEffect(() => {
     AsyncStorage.getItem("@streamhub_default_landing").then((landing) => {
       if (landing && MAIN_TABS.some((t) => t.id === landing)) {
@@ -99,15 +97,23 @@ export default function HomeScreen({ navigation }) {
       const subConfig = SUB_CATEGORIES[mainTab]?.find((s) => s.id === subTab);
 
       if (mainTab === "anime") {
-        const filterParam = subTab === "airing" ? "airing" : subTab === "favorite" ? "favorite" : subTab === "upcoming" ? "upcoming" : "bypopularity";
+        const filterParam =
+          subTab === "airing"
+            ? "airing"
+            : subTab === "favorite"
+            ? "favorite"
+            : subTab === "upcoming"
+            ? "upcoming"
+            : "bypopularity";
         const res = await fetch(`${JIKAN_BASE_URL}/top/anime?filter=${filterParam}&limit=24`);
         const json = await res.json();
         results = (json.data || []).map(normalizeJikanItem).filter(Boolean);
       } else if (mainTab === "trending") {
         const timeWindow = subTab === "all_week" ? "week" : "day";
-        const endpoint = subTab === "now_playing"
-          ? `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`
-          : `https://api.themoviedb.org/3/trending/all/${timeWindow}?api_key=${TMDB_API_KEY}`;
+        const endpoint =
+          subTab === "now_playing"
+            ? `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`
+            : `https://api.themoviedb.org/3/trending/all/${timeWindow}?api_key=${TMDB_API_KEY}`;
         const res = await fetch(endpoint);
         const json = await res.json();
         results = (json.results || []).map((i) => normalizeTmdbItem(i, i.media_type || "movie")).filter(Boolean);
@@ -147,7 +153,6 @@ export default function HomeScreen({ navigation }) {
     setSelectedSubTab(SUB_CATEGORIES[tabId][0].id);
   };
 
-  // Header translates up on downward scroll
   const headerTranslateY = scrollY.interpolate({
     inputRange: [0, HEADER_HEIGHT],
     outputRange: [0, -HEADER_HEIGHT],
@@ -160,18 +165,19 @@ export default function HomeScreen({ navigation }) {
     extrapolate: "clamp",
   });
 
+  const featured = mediaList.length > 0 ? mediaList[0] : null;
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0D0C13" />
 
-      {/* Collapsible Top Header */}
+      {/* Collapsing Brand Header + Sub Tabs */}
       <Animated.View
         style={[
           styles.topContainer,
           { transform: [{ translateY: headerTranslateY }] },
         ]}
       >
-        {/* Brand Header (Hides away on scroll) */}
         <Animated.View style={[styles.mainHeader, { opacity: headerOpacity }]}>
           <View style={styles.logoRow}>
             <View style={styles.logoIcon}>
@@ -187,7 +193,7 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Primary Categories (Trending, Movie, Series, Anime, TV) */}
+        {/* Main Tab Strip: Trending, Movie, Series, Anime, TV */}
         <View style={styles.mainTabStrip}>
           <ScrollView
             horizontal
@@ -253,7 +259,7 @@ export default function HomeScreen({ navigation }) {
         </View>
       </Animated.View>
 
-      {/* Grid Content */}
+      {/* Main Feed Content */}
       {loading && mediaList.length === 0 ? (
         <View style={styles.centerLoader}>
           <ActivityIndicator size="large" color="#FF334B" />
@@ -270,6 +276,68 @@ export default function HomeScreen({ navigation }) {
             { useNativeDriver: true }
           )}
           scrollEventThrottle={16}
+          ListHeaderComponent={
+            featured ? (
+              <View style={styles.heroContainer}>
+                <Image
+                  source={{ uri: featured.backdrop || featured.poster }}
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.heroGradient}>
+                  <View style={styles.heroBadgeRow}>
+                    <View style={styles.heroTypeBadge}>
+                      <Text style={styles.heroTypeText}>
+                        SPOTLIGHT {selectedMainTab.toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.heroRating}>
+                      <Ionicons name="star" size={12} color="#FFB800" />
+                      <Text style={styles.heroRatingText}>{featured.rating}</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.heroTitle} numberOfLines={1}>
+                    {featured.title}
+                  </Text>
+
+                  <View style={styles.heroActions}>
+                    <TouchableOpacity
+                      style={styles.heroPlayBtn}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        navigation.navigate("Details", {
+                          id: featured.rawId,
+                          mediaType: featured.mediaType,
+                          source: featured.source,
+                          item: featured,
+                        })
+                      }
+                    >
+                      <Ionicons name="play" size={16} color="#0D0C13" />
+                      <Text style={styles.heroPlayText}>Play Now</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.heroInfoBtn}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        navigation.navigate("Details", {
+                          id: featured.rawId,
+                          mediaType: featured.mediaType,
+                          source: featured.source,
+                          item: featured,
+                        })
+                      }
+                    >
+                      <Ionicons name="information-circle-outline" size={18} color="#FFFFFF" />
+                      <Text style={styles.heroInfoText}>Details</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <UnifiedMediaCard
               item={item}
@@ -415,5 +483,98 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  heroContainer: {
+    width: "100%",
+    height: 210,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 20,
+    backgroundColor: "#16161F",
+    position: "relative",
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  heroGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    backgroundColor: "rgba(13, 12, 19, 0.45)",
+    justifyContent: "flex-end",
+    padding: 14,
+  },
+  heroBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  heroTypeBadge: {
+    backgroundColor: "#FF334B",
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    borderRadius: 4,
+  },
+  heroTypeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  heroRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(13, 12, 19, 0.75)",
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+  },
+  heroRatingText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  heroTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 10,
+  },
+  heroActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  heroPlayBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    gap: 6,
+  },
+  heroPlayText: {
+    color: "#0D0C13",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  heroInfoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    gap: 6,
+  },
+  heroInfoText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });
