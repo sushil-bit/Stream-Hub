@@ -180,11 +180,11 @@ export default function HomeScreen({ navigation }) {
           normalized = json.data.map(normalizeJikanItem).filter(Boolean);
         }
       } else if (mainTab === "trending") {
-        let endpoint = `https://api.themoviedb.org/3/trending/all/day?api_key=${TMDB_API_KEY}`;
+        let endpoint = `https://tmdb-proxy.cubepre.workers.dev/3/trending/all/day?api_key=${TMDB_API_KEY}`;
         if (subTab === "this_week") {
-          endpoint = `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_API_KEY}`;
+          endpoint = `https://tmdb-proxy.cubepre.workers.dev/3/trending/all/week?api_key=${TMDB_API_KEY}`;
         } else if (subTab === "now_playing") {
-          endpoint = `https://api.themoviedb.org/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`;
+          endpoint = `https://tmdb-proxy.cubepre.workers.dev/3/movie/now_playing?api_key=${TMDB_API_KEY}&page=1`;
         }
         const res = await fetch(endpoint);
         const json = await res.json();
@@ -193,7 +193,7 @@ export default function HomeScreen({ navigation }) {
         }
       } else if (mainTab === "movie") {
         const res = await fetch(
-          `https://api.themoviedb.org/3/movie/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`
+          `https://tmdb-proxy.cubepre.workers.dev/3/movie/${subTab || "popular"}?api_key=${TMDB_API_KEY}&page=1`
         );
         const json = await res.json();
         if (json.results && json.results.length > 0) {
@@ -202,7 +202,7 @@ export default function HomeScreen({ navigation }) {
       } else if (mainTab === "series" || mainTab === "tv") {
         const targetType = subTab || "popular";
         const res = await fetch(
-          `https://api.themoviedb.org/3/tv/${targetType}?api_key=${TMDB_API_KEY}&page=1`
+          `https://tmdb-proxy.cubepre.workers.dev/3/tv/${targetType}?api_key=${TMDB_API_KEY}&page=1`
         );
         const json = await res.json();
         if (json.results && json.results.length > 0) {
