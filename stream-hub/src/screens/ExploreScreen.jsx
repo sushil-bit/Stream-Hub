@@ -11,8 +11,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { normalizeTmdbItem, normalizeJikanItem } from "../utils/mediaNormalizer";
 import UnifiedMediaCard from "../components/UnifiedMediaCard";
 
-// Fallback TMDB Bearer/Key or API endpoint references
-const TMDB_API_KEY = "e2c349924558593414bcbfca414b2d1d"; // standard TMDb demo v3 key
+// TODO: Move these to environment variables
+const TMDB_API_KEY = "YOUR_TMDB_API_KEY"; 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
 const TABS = [
