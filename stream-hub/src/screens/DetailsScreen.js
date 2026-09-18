@@ -281,6 +281,10 @@ export default function DetailsScreen({ route, navigation }) {
     });
   };
 
+  const handleDownloadStatus = () => {
+    getDownloads().then((map) => setDownloadMap(map || {}));
+  };
+
   
   console.log('--- COMPONENT RUNTIME CHECK ---');
   console.log('SafeAreaView:', typeof SafeAreaView);

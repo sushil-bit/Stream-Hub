@@ -26,7 +26,7 @@ export default function DownloadsScreen({ navigation }) {
 
   const loadDownloads = async () => {
     try {
-      const stored = await AsyncStorage.getItem("@stream_downloads");
+      const stored = await AsyncStorage.getItem("@streamhub_offline_downloads");
 
       let downloadMap = stored ? JSON.parse(stored) : {};
       
@@ -120,10 +120,10 @@ export default function DownloadsScreen({ navigation }) {
 
   const deleteItem = async (folderKey, itemId) => {
     try {
-      const stored = await AsyncStorage.getItem("@stream_downloads");
+      const stored = await AsyncStorage.getItem("@streamhub_offline_downloads");
       const downloadMap = stored ? JSON.parse(stored) : {};
       delete downloadMap[itemId];
-      await AsyncStorage.setItem("@stream_downloads", JSON.stringify(downloadMap));
+      await AsyncStorage.setItem("@streamhub_offline_downloads", JSON.stringify(downloadMap));
       loadDownloads();
     } catch (e) {
       console.warn("Failed to delete item:", e);
