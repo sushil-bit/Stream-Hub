@@ -10,3 +10,4 @@
 [35mpatch_nav_downloads.js[m[36m:[m  const tabScreenEntry = `  <[1;31mTab.Screen[m 
 [35mpatch_nav_downloads.js[m[36m:[m  const stackScreenEntry = `  <Stack.[1;31mScreen name=[m"Downloads" component={DownloadsScreen} />
 [35mpatch_nav_downloads.js[m[36m:[m        <[1;31mTab.Screen[m name="Me" component={MeScreen} />\n    </Stack.Navigator>`;
+]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]

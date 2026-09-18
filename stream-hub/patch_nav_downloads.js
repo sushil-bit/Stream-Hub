@@ -26,7 +26,7 @@ if (code.includes('<Tab.Navigator') && !code.includes('name="Downloads"')) {
   code = code.replace('</Tab.Navigator>', tabScreenEntry);
 } else if (code.includes('<Stack.Navigator') && !code.includes('name="Downloads"')) {
   const stackScreenEntry = `  <Stack.Screen name="Downloads" component={DownloadsScreen} />
-        <Tab.Screen name="Me" component={MeScreen} />\n    </Stack.Navigator>`;
+        <Stack.Screen name="Me" component={MeScreen} />\n    </Stack.Navigator>`;
   code = code.replace('</Stack.Navigator>', stackScreenEntry);
 }
 

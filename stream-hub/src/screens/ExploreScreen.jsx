@@ -94,7 +94,7 @@ export default function ExploreScreen({ navigation }) {
   const handleCardPress = (item) => {
     // Route to media details
     if (navigation?.navigate) {
-      navigation.navigate("Details", {
+      navigation.navigate("DetailsScreen", {
         id: item.rawId,
         mediaType: item.mediaType,
         source: item.source,
